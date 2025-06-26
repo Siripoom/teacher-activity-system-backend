@@ -1,0 +1,97 @@
+// schema.prisma
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Department {
+    id         String     @id @default(uuid()) @db.Uuid
+    name       String
+    shortName  String
+    createdAt  DateTime   @default(now())
+    updatedAt  DateTime   @updatedAt
+    employees  employee[]
+    students   Student[]
+    activities Activity[]
+}
+
+model employee {
+    id           String     @id @default(uuid()) @db.Uuid
+    fullname     String
+    email        String     @unique
+    password     String
+    phone        String?
+    department   Department @relation(fields: [departmentId], references: [id])
+    departmentId String
+    role         Role       @default(teacher)
+    createdAt    DateTime   @default(now())
+    updatedAt    DateTime   @updatedAt
+}
+
+model Student {
+    id           String        @id
+    fullname     String
+    department   Department    @relation(fields: [departmentId], references: [id])
+    departmentId String
+    birthdate    DateTime
+    phone        String?
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @updatedAt
+    status       StudentStatus @default(active)
+    attendances  Attendance[]
+}
+
+model Activity {
+    id           String         @id @default(uuid()) @db.Uuid
+    name         String
+    description  String?
+    date         DateTime
+    createdAt    DateTime       @default(now())
+    updatedAt    DateTime       @updatedAt
+    department   Department     @relation(fields: [departmentId], references: [id])
+    departmentId String
+    status       ActivityStatus @default(planned)
+    attendances  Attendance[]
+}
+
+model Attendance {
+    id         String           @id @default(uuid()) @db.Uuid
+    student    Student          @relation(fields: [studentId], references: [id])
+    studentId  String
+    activity   Activity         @relation(fields: [activityId], references: [id])
+    activityId String
+    status     AttendanceStatus @default(joined)
+    createdAt  DateTime         @default(now())
+    updatedAt  DateTime         @updatedAt
+}
+
+enum Role {
+    admin
+    teacher
+}
+
+enum AttendanceStatus {
+    joined
+    accepted
+    rejected
+    Inprogress
+    completed
+    uncompleted
+}
+
+enum ActivityStatus {
+    planned
+    inprogress
+    completed
+    cancelled
+}
+
+enum StudentStatus {
+    active
+    graduated
+    expelled
+}
