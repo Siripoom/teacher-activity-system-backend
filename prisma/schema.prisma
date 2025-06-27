@@ -30,6 +30,7 @@ model employee {
     role         Role       @default(teacher)
     createdAt    DateTime   @default(now())
     updatedAt    DateTime   @updatedAt
+    activities   Activity[]
 }
 
 model Student {
@@ -38,6 +39,7 @@ model Student {
     department   Department    @relation(fields: [departmentId], references: [id])
     departmentId String
     birthdate    DateTime
+    email        String        @unique
     phone        String?
     createdAt    DateTime      @default(now())
     updatedAt    DateTime      @updatedAt
@@ -46,16 +48,23 @@ model Student {
 }
 
 model Activity {
-    id           String         @id @default(uuid()) @db.Uuid
-    name         String
-    description  String?
-    date         DateTime
-    createdAt    DateTime       @default(now())
-    updatedAt    DateTime       @updatedAt
-    department   Department     @relation(fields: [departmentId], references: [id])
-    departmentId String
-    status       ActivityStatus @default(planned)
-    attendances  Attendance[]
+    id             String         @id @default(uuid()) @db.Uuid
+    name           String //ชื่อกิจกรรม
+    description    String? //คำอธิบายกิจกรรม
+    date           DateTime //วันที่จัดกิจกรรม
+    address        String //สถานที่จัดกิจกรรม
+    status         ActivityStatus @default(planned) //สถานะกิจกรรม
+    departmentId   String //Foreign key to Department
+    peopleCount    Int? //จำนวนคนที่เข้าร่วมกิจกรรม
+    maxPeopleCount Int? //จำนวนคนสูงสุดที่สามารถเข้าร่วมกิจกรรม
+    fileActivity   String? //ไฟล์กิจกรรม (เช่น PDF, รูปภาพ)
+    hour           Int? //จำนวนชั่วโมงกิจกรรม
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
+    employeeId     String //Foreign key to employee
+    employee       employee       @relation(fields: [employeeId], references: [id])
+    department     Department     @relation(fields: [departmentId], references: [id])
+    attendances    Attendance[]
 }
 
 model Attendance {
@@ -64,6 +73,7 @@ model Attendance {
     studentId  String
     activity   Activity         @relation(fields: [activityId], references: [id])
     activityId String
+    reason     String?
     status     AttendanceStatus @default(joined)
     createdAt  DateTime         @default(now())
     updatedAt  DateTime         @updatedAt
