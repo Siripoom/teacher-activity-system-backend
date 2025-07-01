@@ -5,13 +5,16 @@ import cors from 'cors';
 import multer from 'multer';
 import { parse } from 'csv-parse';
 import fs from 'fs';
-
+import employeeRoutes from './routes/employeeRoutes.js'; // นำเข้า employeeRoutes
 dotenv.config();
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// use Routes
+app.use('/api/employee', employeeRoutes); // ใช้ employeeRoutes
 
 const upload = multer({ dest: 'uploads/' });
 

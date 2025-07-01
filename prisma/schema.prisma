@@ -1,4 +1,3 @@
-// schema.prisma
 generator client {
     provider = "prisma-client-js"
 }
@@ -25,8 +24,8 @@ model employee {
     email        String     @unique
     password     String
     phone        String?
-    department   Department @relation(fields: [departmentId], references: [id])
-    departmentId String
+    departmentId String?     @db.Uuid
+    department   Department? @relation(fields: [departmentId], references: [id])
     role         Role       @default(teacher)
     createdAt    DateTime   @default(now())
     updatedAt    DateTime   @updatedAt
@@ -34,10 +33,10 @@ model employee {
 }
 
 model Student {
-    id           String        @id
+    id           String        @id @default(uuid()) @db.Uuid
     fullname     String
+    departmentId String        @db.Uuid
     department   Department    @relation(fields: [departmentId], references: [id])
-    departmentId String
     birthdate    DateTime
     email        String        @unique
     phone        String?
@@ -49,30 +48,30 @@ model Student {
 
 model Activity {
     id             String         @id @default(uuid()) @db.Uuid
-    name           String //ชื่อกิจกรรม
-    description    String? //คำอธิบายกิจกรรม
-    date           DateTime //วันที่จัดกิจกรรม
-    address        String //สถานที่จัดกิจกรรม
-    status         ActivityStatus @default(planned) //สถานะกิจกรรม
-    departmentId   String //Foreign key to Department
-    peopleCount    Int? //จำนวนคนที่เข้าร่วมกิจกรรม
-    maxPeopleCount Int? //จำนวนคนสูงสุดที่สามารถเข้าร่วมกิจกรรม
-    fileActivity   String? //ไฟล์กิจกรรม (เช่น PDF, รูปภาพ)
-    hour           Int? //จำนวนชั่วโมงกิจกรรม
+    name           String
+    description    String?
+    date           DateTime
+    address        String
+    departmentId   String         @db.Uuid
+    employeeId     String         @db.Uuid
+    peopleCount    Int?
+    maxPeopleCount Int?
+    fileActivity   String?
+    hour           Int?
+    status         ActivityStatus @default(planned)
     createdAt      DateTime       @default(now())
     updatedAt      DateTime       @updatedAt
-    employeeId     String //Foreign key to employee
-    employee       employee       @relation(fields: [employeeId], references: [id])
     department     Department     @relation(fields: [departmentId], references: [id])
+    employee       employee       @relation(fields: [employeeId], references: [id])
     attendances    Attendance[]
 }
 
 model Attendance {
     id         String           @id @default(uuid()) @db.Uuid
+    studentId  String           @db.Uuid
+    activityId String           @db.Uuid
     student    Student          @relation(fields: [studentId], references: [id])
-    studentId  String
     activity   Activity         @relation(fields: [activityId], references: [id])
-    activityId String
     reason     String?
     status     AttendanceStatus @default(joined)
     createdAt  DateTime         @default(now())
