@@ -22,7 +22,6 @@ app.use(express.json());
 app.use('/api/employee', employeeRoutes); // ใช้ employeeRoutes
 app.use('/api/student', studentRoutes);
 app.use('/api/department', departmentRoutes);
-app.use('/api/activity', activityRoutes);
 app.use('/api/test', testUploadRoute);
 
 const upload = multer({ dest: 'uploads/' });
