@@ -6,6 +6,11 @@ import multer from 'multer';
 import { parse } from 'csv-parse';
 import fs from 'fs';
 import employeeRoutes from './routes/employeeRoutes.js'; // นำเข้า employeeRoutes
+import studentRoutes from './routes/studentRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
+import testUploadRoute from './routes/testUploadRoute.js'
+
+
 dotenv.config();
 
 const app = express();
@@ -15,6 +20,10 @@ app.use(express.json());
 
 // use Routes
 app.use('/api/employee', employeeRoutes); // ใช้ employeeRoutes
+app.use('/api/student', studentRoutes);
+app.use('/api/department', departmentRoutes);
+app.use('/api/activity', activityRoutes);
+app.use('/api/test', testUploadRoute);
 
 const upload = multer({ dest: 'uploads/' });
 
