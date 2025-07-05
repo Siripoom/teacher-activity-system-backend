@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();  
+const prisma = new PrismaClient();
 
 export const getAllDepartments = async (req, res) => {
     try {
@@ -12,7 +12,7 @@ export const getAllDepartments = async (req, res) => {
         if (!departments || departments.length === 0) {
             return res.status(404).json({ message: "No departments found" });
         }
-        
+
         // Return the list of departments
         return res.status(200).json(departments);
     } catch (error) {
@@ -30,11 +30,11 @@ export const createDepartment = (req, res) => {
             shortName
         }
     })
-    .then(department => {
-        return res.status(201).json(department);
-    })
-    .catch(error => {
-        console.error("Error creating department:", error);
-        return res.status(500).json({ message: "Internal server error" });
-    });
+        .then(department => {
+            return res.status(201).json(department);
+        })
+        .catch(error => {
+            console.error("Error creating department:", error);
+            return res.status(500).json({ message: "Internal server error" });
+        });
 }
