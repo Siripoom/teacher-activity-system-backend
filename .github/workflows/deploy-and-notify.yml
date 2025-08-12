@@ -1,0 +1,342 @@
+# ชื่อของ Workflow นี้ (จะแสดงบนหน้า Actions ของ GitHub)
+name: Deploy and Notify Discord
+
+# "ตัวจุดชนวน": ให้ทำงานเมื่อมีกิจกรรมต่างๆ
+on:
+  # เมื่อมี push ไปยัง branch ใดๆ
+  push:
+    branches: [ '*' ]  # รองรับทุก branch
+  
+  # เมื่อมี pull request (เปิด, อัพเดท, ปิด, merge)
+  pull_request:
+    types: [opened, synchronize, closed, reopened]
+    branches: [ '*' ]
+  
+  # เมื่อมีการสร้าง branch หรือ tag ใหม่
+  create:
+  
+  # เมื่อมีการลบ branch หรือ tag
+  delete:
+
+jobs:
+  # งานสำหรับ Deploy (รันเฉพาะเมื่อ push ไป main)
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22.14.0'
+      
+      - name: Install Dependencies
+        run: npm install
+          
+      - name: Deploy to Server
+        run: |
+          echo "Deploying to production..."
+          # ใส่คำสั่ง deploy จริงของคุณตรงนี้
+          
+      - name: Notify Discord on Deploy Success
+        if: success()
+        env:
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "content": null,
+            "embeds": [
+              {
+                "title": "🚀 Deploy สำเร็จ!",
+                "description": "โค้ดเวอร์ชันล่าสุดจาก **${{ github.repository }}** ถูกนำขึ้น Production เรียบร้อยแล้ว",
+                "color": 3066993,
+                "fields": [
+                  {
+                    "name": "Commit",
+                    "value": "[`${GITHUB_SHA_SHORT:0:7}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                    "inline": true
+                  },
+                  {
+                    "name": "Triggered by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Powered by GitHub Actions"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Notify Discord on Deploy Failure
+        if: failure()
+        env:
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "content": "@here",
+            "embeds": [
+              {
+                "title": "❌ Deploy ล้มเหลว!",
+                "description": "เกิดข้อผิดพลาดระหว่างการ deploy โปรเจค **${{ github.repository }}**",
+                "color": 15548997,
+                "fields": [
+                  {
+                    "name": "Commit ที่ทำให้เกิดปัญหา",
+                    "value": "[`${GITHUB_SHA_SHORT:0:7}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                    "inline": true
+                  },
+                  {
+                    "name": "Triggered by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "ดู Log ที่นี่",
+                    "value": "[คลิกเพื่อดู Log บน GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                    "inline": false
+                  }
+                ]
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+  # งานสำหรับแจ้งเตือนกิจกรรมต่างๆ
+  notify:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      # แจ้งเตือนเมื่อ Push ไปยัง branch อื่นๆ (ไม่ใช่ main)
+      - name: Notify Push to Branch
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        env:
+          GITHUB_SHA_SHORT: ${{ github.sha }}
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "📝 Push ใหม่ใน Branch",
+                "description": "มีการ push โค้ดใหม่ไปยัง branch **'${BRANCH_NAME}'**",
+                "color": 5814783,
+                "fields": [
+                  {
+                    "name": "Branch",
+                    "value": "'${BRANCH_NAME}'",
+                    "inline": true
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "[`${GITHUB_SHA_SHORT:0:7}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})",
+                    "inline": true
+                  },
+                  {
+                    "name": "Author",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Commit Message",
+                    "value": "${{ github.event.head_commit.message }}",
+                    "inline": false
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # แจ้งเตือนเมื่อเปิด Pull Request
+      - name: Notify Pull Request Opened
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "🔄 Pull Request ใหม่!",
+                "description": "มี Pull Request ใหม่รอการ review",
+                "color": 3447003,
+                "fields": [
+                  {
+                    "name": "PR Title",
+                    "value": "${{ github.event.pull_request.title }}",
+                    "inline": false
+                  },
+                  {
+                    "name": "From → To",
+                    "value": "`${{ github.event.pull_request.head.ref }}` → `${{ github.event.pull_request.base.ref }}`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Author",
+                    "value": "${{ github.event.pull_request.user.login }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Link",
+                    "value": "[ดู PR](${{ github.event.pull_request.html_url }})",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # แจ้งเตือนเมื่อ Pull Request ถูก merge
+      - name: Notify Pull Request Merged
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "✅ Pull Request ถูก Merge!",
+                "description": "Pull Request ถูก merge เข้า branch หลักเรียบร้อยแล้ว",
+                "color": 3066993,
+                "fields": [
+                  {
+                    "name": "PR Title",
+                    "value": "${{ github.event.pull_request.title }}",
+                    "inline": false
+                  },
+                  {
+                    "name": "Merged by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Into Branch",
+                    "value": "`${{ github.event.pull_request.base.ref }}`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Link",
+                    "value": "[ดู PR](${{ github.event.pull_request.html_url }})",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # แจ้งเตือนเมื่อ Pull Request ถูกปิดโดยไม่ merge
+      - name: Notify Pull Request Closed
+        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == false
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "❌ Pull Request ถูกปิด",
+                "description": "Pull Request ถูกปิดโดยไม่ได้ merge",
+                "color": 15548997,
+                "fields": [
+                  {
+                    "name": "PR Title",
+                    "value": "${{ github.event.pull_request.title }}",
+                    "inline": false
+                  },
+                  {
+                    "name": "Closed by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Link",
+                    "value": "[ดู PR](${{ github.event.pull_request.html_url }})",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # แจ้งเตือนเมื่อสร้าง Branch ใหม่
+      - name: Notify Branch Created
+        if: github.event_name == 'create' && github.event.ref_type == 'branch'
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "🌿 Branch ใหม่ถูกสร้าง!",
+                "description": "มีการสร้าง branch ใหม่ในโปรเจค",
+                "color": 9936031,
+                "fields": [
+                  {
+                    "name": "Branch Name",
+                    "value": "`${{ github.event.ref }}`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Created by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      # แจ้งเตือนเมื่อลบ Branch asd
+      - name: Notify Branch Deleted
+        if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+          -d '{
+            "embeds": [
+              {
+                "title": "🗑️ Branch ถูกลบ",
+                "description": "มีการลบ branch ออกจากโปรเจค",
+                "color": 10181046,
+                "fields": [
+                  {
+                    "name": "Branch Name",
+                    "value": "`${{ github.event.ref }}`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Deleted by",
+                    "value": "${{ github.actor }}",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Repository: ${{ github.repository }}"
+                }
+              }
+            ]
+          }' \
+          ${{ secrets.DISCORD_WEBHOOK_URL }}
