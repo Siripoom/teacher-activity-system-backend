@@ -12,8 +12,6 @@ export const getAllDepartments = async (req, res) => {
         if (!departments || departments.length === 0) {
             return res.status(404).json({ message: "No departments found" });
         }
-
-        // Return the list of departments
         return res.status(200).json(departments);
     } catch (error) {
         console.error("Error fetching departments:", error);
@@ -93,19 +91,33 @@ export const updateDepartment = async (req, res) => {
 export const deleteDepartment = async (req, res) => {
     try {
         const { id } = req.params;
+        const departmentToDelete = await prisma.department.findUnique({
+            where: { id: id },
+        });
+
+        if (!departmentToDelete) {
+            return res.status(404).json({ message: `Department with ID ${id} not found.` });
+        }
 
         await prisma.department.delete({
             where: { id: id }
         });
 
-        return res.status(204).send();
+        return res.status(200).json({
+            message: `Successfully deleted department '${departmentToDelete.name}' (ID: ${id}).`
+        });
+
     } catch (error) {
-        if (error.code === 'P2025') {
-            return res.status(404).json({ message: `Department with ID ${req.params.id} not found` });
-        }
         if (error.code === 'P2003') {
-            return res.status(409).json({ message: `Cannot delete department. It is still associated with employees or students.` });
+            return res.status(409).json({
+                message: `Cannot delete department. It is still associated with employees or students.`
+            });
         }
+
+        if (error.code === 'P2025') {
+            return res.status(404).json({ message: `Department with ID ${req.params.id} not found.` });
+        }
+
         console.error(`Error deleting department with ID ${req.params.id}:`, error);
         return res.status(500).json({ message: "Internal server error" });
     }

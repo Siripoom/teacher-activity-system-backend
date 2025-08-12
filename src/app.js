@@ -8,21 +8,23 @@ import fs from 'fs';
 import employeeRoutes from './routes/employeeRoutes.js'; // นำเข้า employeeRoutes
 import studentRoutes from './routes/studentRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
-import testUploadRoute from './routes/testUploadRoute.js'
-
+import testUploadRoute from './routes/testUploadRoute.js';
+import activityRoutes from './routes/activityRoutes.js';
 
 dotenv.config();
 
 const app = express();
 
+
 app.use(cors());
 app.use(express.json());
 
 // use Routes
-app.use('/api/employee', employeeRoutes); // ใช้ employeeRoutes
-app.use('/api/student', studentRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/students', studentRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/test', testUploadRoute);
+app.use('/api/activities', activityRoutes);
 
 const upload = multer({ dest: 'uploads/' });
 
