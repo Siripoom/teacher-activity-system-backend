@@ -1,31 +1,30 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+// import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import dayjs from "dayjs";
 
 const prisma = new PrismaClient();
 
-const loginStudent = async (req, res) => {
-    const { username, password } = req.body;
+export const loginStudent = async (req, res) => {
+    const { studentId, password } = req.body;
 
     try {
         // ค้นหาผู้ใช้ตามชื่อผู้ใช้
         const student = await prisma.student.findUnique({
-            where: { id },
+            where: { id: studentId },
         });
 
-        if (!user) {
+        if (!student) {
             return res.status(404).json({ message: "User not found" });
         }
-
-        // ตรวจสอบรหัสผ่าน
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
+        // console.log("password = ",password ," || birthday = ",dayjs(student.birthdate).add(543, 'year').format('DD-MM-YYYY'));
+        if(dayjs(student.birthdate).add(543, 'year').format('DD-MM-YYYY') !== password){
             return res.status(401).json({ message: "Invalid password" });
         }
-
+        
         // สร้าง JWT token
-        const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
-            expiresIn: '1h',
+        const token = jwt.sign({ id: student.id, username: student.fullname }, process.env.JWT_SECRET, {
+            expiresIn: '3h',
         });
 
         return res.status(200).json({ token });

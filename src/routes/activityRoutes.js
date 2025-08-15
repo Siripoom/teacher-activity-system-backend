@@ -7,6 +7,7 @@ import {
   updateActivity,
   deleteActivity
 } from '../controllers/activityController.js';
+import authMiddleware from '../middleware/middleware.js';
 
 const router = express.Router();
 
@@ -32,6 +33,7 @@ const activityValidationRules = [
   body('status').optional().isIn(['planned', 'inprogress', 'completed', 'cancelled']).withMessage('Invalid status.')
 ];
 
+router.use(authMiddleware); // Apply authentication middleware to all routes
 router.route('/')
   .get(getAllActivities)
   .post(activityValidationRules, validateRequest, createActivity);

@@ -13,12 +13,12 @@ model Department {
     shortName  String
     createdAt  DateTime   @default(now())
     updatedAt  DateTime   @updatedAt
-    employees  employee[]
+    Employees  Employee[]
     students   Student[]
     activities Activity[]
 }
 
-model employee {
+model Employee {
     id           String     @id @default(uuid()) @db.Uuid
     fullname     String
     email        String     @unique
@@ -33,17 +33,18 @@ model employee {
 }
 
 model Student {
-    id           String        @id @default(uuid()) @db.Uuid
+    id           String        @id 
     fullname     String
     departmentId String        @db.Uuid
-    department   Department    @relation(fields: [departmentId], references: [id])
     birthdate    DateTime
     email        String        @unique
     phone        String?
+    profilePic   String?       
     createdAt    DateTime      @default(now())
     updatedAt    DateTime      @updatedAt
     status       StudentStatus @default(active)
     attendances  Attendance[]
+    department   Department    @relation(fields: [departmentId], references: [id])
 }
 
 model Activity {
@@ -62,13 +63,22 @@ model Activity {
     createdAt      DateTime       @default(now())
     updatedAt      DateTime       @updatedAt
     department     Department     @relation(fields: [departmentId], references: [id])
-    employee       employee       @relation(fields: [employeeId], references: [id])
+    Employee       Employee       @relation(fields: [employeeId], references: [id])
     attendances    Attendance[]
+}
+
+model Log {
+    id        String   @id @default(uuid()) @db.Uuid
+    action    String
+    fullname  String
+    role      String
+    description String?
+    createdAt DateTime @default(now())
 }
 
 model Attendance {
     id         String           @id @default(uuid()) @db.Uuid
-    studentId  String           @db.Uuid
+    studentId  String           
     activityId String           @db.Uuid
     student    Student          @relation(fields: [studentId], references: [id])
     activity   Activity         @relation(fields: [activityId], references: [id])
