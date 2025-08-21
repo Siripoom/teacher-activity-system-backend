@@ -7,6 +7,7 @@ import {
   updateStudent,
   deleteStudent
 } from '../controllers/studentController.js';
+import { authMiddleware } from '../middleware/middleware.js';
 
 const router = express.Router();
 
@@ -39,6 +40,8 @@ const updateStudentValidationRules = [
   body('phone').optional({ checkFalsy: true }).isMobilePhone('any').withMessage('Invalid phone number format.'),
   body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status.')
 ];
+
+router.use(authMiddleware)
 
 router.route('/')
   .get(getAllStudents)

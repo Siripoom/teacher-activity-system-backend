@@ -23,7 +23,7 @@ export const loginStudent = async (req, res) => {
         }
         
         // สร้าง JWT token
-        const token = jwt.sign({ id: student.id, username: student.fullname }, process.env.JWT_SECRET, {
+        const token = jwt.sign({ id: student.id, fullname: student.fullname , role:"student" }, process.env.JWT_SECRET, {
             expiresIn: '3h',
         });
 
