@@ -5,7 +5,7 @@ export const getAllDepartments = async (req, res) => {
     try {
         const departments = await prisma.department.findMany({
             include: {
-                employees: true,
+                Employees: true,
             }
         });
 
@@ -43,7 +43,7 @@ export const getDepartmentById = async (req, res) => {
         const department = await prisma.department.findUnique({
             where: { id: id },
             include: {
-                employees: true,
+                Employees: true,
                 students: true,
             }
         });
@@ -110,7 +110,7 @@ export const deleteDepartment = async (req, res) => {
     } catch (error) {
         if (error.code === 'P2003') {
             return res.status(409).json({
-                message: `Cannot delete department. It is still associated with employees or students.`
+                message: `Cannot delete department. It is still associated with Employees or students.`
             });
         }
 
