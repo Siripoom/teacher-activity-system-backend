@@ -36,11 +36,12 @@ export const createActivity = async (req, res) => {
     res.status(201).json(newActivity);
   } catch (error) {
     if (error.code === 'P2003') {
-      if (error.meta?.field_name.includes('departmentId')) {
-        return res.status(404).json({ message: `Department with ID ${req.body.departmentId} not found.` });
+      const fieldName = error.meta?.field_name || '';
+      if (fieldName.includes('departmentId')) {
+        return res.status(404).json({ message: `Department with ID '${req.body.departmentId}' not found.` });
       }
-      if (error.meta?.field_name.includes('employeeId')) {
-        return res.status(404).json({ message: `Employee with ID ${req.body.employeeId} not found.` });
+      if (fieldName.includes('employeeId')) {
+        return res.status(404).json({ message: `Employee with ID '${req.body.employeeId}' not found.` });
       }
     }
     console.error("Error creating activity:", error);
@@ -61,7 +62,7 @@ export const getAllActivities = async (req, res) => {
       where: whereClause,
       include: {
         department: { select: { name: true, shortName: true } },
-        employee: { select: { fullname: true, email: true } }
+        Employee: { select: { fullname: true, email: true } }
       },
       orderBy: {
         date: 'desc'
@@ -82,7 +83,7 @@ export const getActivityById = async (req, res) => {
       where: { id },
       include: {
         department: true,
-        employee: { select: { id: true, fullname: true, email: true } },
+        Employee: { select: { id: true, fullname: true, email: true } },
         attendances: {
           include: {
             student: { select: { id: true, fullname: true, email: true } }
@@ -92,7 +93,7 @@ export const getActivityById = async (req, res) => {
     });
 
     if (!activity) {
-      return res.status(404).json({ message: `Activity with ID ${id} not found.` });
+      return res.status(404).json({ message: `Activity with ID '${id}' not found.` });
     }
     res.status(200).json(activity);
   } catch (error) {
@@ -118,7 +119,16 @@ export const updateActivity = async (req, res) => {
     res.status(200).json(updatedActivity);
   } catch (error) {
     if (error.code === 'P2025') {
-      return res.status(404).json({ message: `Activity with ID ${req.params.id} not found to update.` });
+      return res.status(404).json({ message: `Activity with ID '${req.params.id}' not found to update.` });
+    }
+    if (error.code === 'P2003') {
+      const fieldName = error.meta?.field_name || '';
+      if (fieldName.includes('departmentId')) {
+        return res.status(404).json({ message: `Cannot update: Department with ID '${req.body.departmentId}' not found.` });
+      }
+      if (fieldName.includes('employeeId')) {
+        return res.status(404).json({ message: `Cannot update: Employee with ID '${req.body.employeeId}' not found.` });
+      }
     }
     console.error(`Error updating activity with ID ${req.params.id}:`, error);
     res.status(500).json({ message: 'Internal server error' });
@@ -132,7 +142,7 @@ export const deleteActivity = async (req, res) => {
     const activityToDelete = await prisma.activity.findUnique({ where: { id } });
 
     if (!activityToDelete) {
-      return res.status(404).json({ message: `Activity with ID ${id} not found.` });
+      return res.status(404).json({ message: `Activity with ID '${id}' not found.` });
     }
 
     await prisma.activity.delete({ where: { id } });
