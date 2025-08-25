@@ -1,4 +1,8 @@
 import { PrismaClient } from '@prisma/client';
+
+import { validate as isUuid } from 'uuid';
+import { createLog} from './logController.js'; // Adjust the import path as necessary
+
 const prisma = new PrismaClient();
 
 export const getAllStudents = async (req, res) => {
@@ -6,6 +10,11 @@ export const getAllStudents = async (req, res) => {
     const students = await prisma.student.findMany({
       include: { department: true }
     });
+    if (students.length === 0) {
+      return res.status(404).json({ message: "No students found." });
+    }
+    const log = await createLog(req.user, "Student" , "Retrieved all student records from the database.");
+    console.log(log);
     res.status(200).json(students);
   } catch (error) {
     console.error("Error fetching students:", error);
@@ -21,7 +30,11 @@ export const getStudentById = async (req, res) => {
       include: { department: true }
     });
 
+    if (!student) return res.status(404).json({ message: "Student not found." });
+    await createLog(req.user, "Student", `Retrieved student record with ID: ${id}`);
+
     if (!student) return res.status(404).json({ message: `Student with ID '${id}' not found.` });
+
     res.status(200).json(student);
   } catch (error) {
     console.error("Error fetching student:", error);
@@ -47,6 +60,11 @@ export const createStudent = async (req, res) => {
         status
       }
     });
+    if (!newStudent) {
+      return res.status(500).json({ message: "Failed to create student." });
+    }
+
+    await createLog(req.user, "Student", `New student created with ID: ${newStudent.id}`);
     res.status(201).json(newStudent);
   } catch (error) {
     if (error.code === 'P2002') {
@@ -82,7 +100,10 @@ export const updateStudent = async (req, res) => {
         status
       }
     });
-
+    if (!updatedStudent) {
+      return res.status(404).json({ message: "Student not found." });
+    } 
+    await createLog(req.user, "Student", `Student record with ID: ${id} updated successfully.`)
     res.status(200).json(updatedStudent);
   } catch (error) {
     if (error.code === 'P2025') {
@@ -102,7 +123,7 @@ export const deleteStudent = async (req, res) => {
     }
 
     await prisma.student.delete({ where: { id } });
-
+    await createLog(req.user, "Student", `Student record with ID: ${id} deleted successfully.`);
     res.status(200).json({ message: `Successfully deleted student '${studentToDelete.fullname}' (ID: ${id}).` });
   } catch (error) {
     if (error.code === 'P2003') {

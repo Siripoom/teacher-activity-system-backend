@@ -7,6 +7,7 @@ import {
   updateStudent,
   deleteStudent
 } from '../controllers/studentController.js';
+import { authMiddleware } from '../middleware/middleware.js';
 
 const router = express.Router();
 
@@ -46,6 +47,8 @@ const updateStudentValidationRules = [
   body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status.'),
   body('profilePic').optional({ checkFalsy: true }).isURL().withMessage('Profile picture must be a valid URL.')
 ];
+
+router.use(authMiddleware)
 
 router.route('/')
   .get(getAllStudents)
