@@ -20,16 +20,22 @@ const validateRequest = (req, res, next) => {
 };
 
 const idValidationRule = [
-  param('id').isUUID(4).withMessage('Student ID must be a valid UUID v4.')
+  param('id').trim().notEmpty().withMessage('Student ID in URL parameter is required.')
 ];
 
 const createStudentValidationRules = [
+  body('id')
+    .trim()
+    .notEmpty().withMessage('Student ID is required.')
+    .isAlphanumeric().withMessage('Student ID should contain only letters and numbers.'),
+  // .isLength({ min: 8, max: 10 }).withMessage('Student ID must be between 8 and 10 characters.'),
   body('fullname').trim().notEmpty().withMessage('Fullname is required.'),
   body('departmentId').isUUID(4).withMessage('A valid Department ID is required.'),
   body('birthdate').isISO8601().toDate().withMessage('A valid birthdate is required (format: YYYY-MM-DD).'),
   body('email').isEmail().normalizeEmail().withMessage('A valid email is required.'),
   body('phone').optional({ checkFalsy: true }).isMobilePhone('any').withMessage('Invalid phone number format.'),
-  body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status. Must be one of: active, graduated, expelled.')
+  body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status. Must be one of: active, graduated, expelled.'),
+  body('profilePic').optional({ checkFalsy: true }).isURL().withMessage('Profile picture must be a valid URL.')
 ];
 
 const updateStudentValidationRules = [
@@ -38,7 +44,8 @@ const updateStudentValidationRules = [
   body('birthdate').optional().isISO8601().toDate().withMessage('Birthdate must be a valid date (format: YYYY-MM-DD).'),
   body('email').optional().isEmail().normalizeEmail().withMessage('Must be a valid email.'),
   body('phone').optional({ checkFalsy: true }).isMobilePhone('any').withMessage('Invalid phone number format.'),
-  body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status.')
+  body('status').optional().isIn(['active', 'graduated', 'expelled']).withMessage('Invalid status.'),
+  body('profilePic').optional({ checkFalsy: true }).isURL().withMessage('Profile picture must be a valid URL.')
 ];
 
 router.use(authMiddleware)
