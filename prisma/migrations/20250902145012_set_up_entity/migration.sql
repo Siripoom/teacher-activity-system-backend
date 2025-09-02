@@ -22,7 +22,7 @@ CREATE TABLE "Department" (
 );
 
 -- CreateTable
-CREATE TABLE "employee" (
+CREATE TABLE "Employee" (
     "id" UUID NOT NULL,
     "fullname" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -33,17 +33,18 @@ CREATE TABLE "employee" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "employee_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Employee_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Student" (
-    "id" UUID NOT NULL,
+    "id" TEXT NOT NULL,
     "fullname" TEXT NOT NULL,
     "departmentId" UUID NOT NULL,
-    "birthdate" TIMESTAMP(3) NOT NULL,
+    "birthday" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "phone" TEXT,
+    "profilePic" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "status" "StudentStatus" NOT NULL DEFAULT 'active',
@@ -72,9 +73,21 @@ CREATE TABLE "Activity" (
 );
 
 -- CreateTable
+CREATE TABLE "Log" (
+    "id" UUID NOT NULL,
+    "action" TEXT NOT NULL,
+    "fullname" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Log_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Attendance" (
     "id" UUID NOT NULL,
-    "studentId" UUID NOT NULL,
+    "studentId" TEXT NOT NULL,
     "activityId" UUID NOT NULL,
     "reason" TEXT,
     "status" "AttendanceStatus" NOT NULL DEFAULT 'joined',
@@ -85,13 +98,13 @@ CREATE TABLE "Attendance" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "employee_email_key" ON "employee"("email");
+CREATE UNIQUE INDEX "Employee_email_key" ON "Employee"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Student_email_key" ON "Student"("email");
 
 -- AddForeignKey
-ALTER TABLE "employee" ADD CONSTRAINT "employee_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Employee" ADD CONSTRAINT "Employee_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Student" ADD CONSTRAINT "Student_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -100,7 +113,7 @@ ALTER TABLE "Student" ADD CONSTRAINT "Student_departmentId_fkey" FOREIGN KEY ("d
 ALTER TABLE "Activity" ADD CONSTRAINT "Activity_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Activity" ADD CONSTRAINT "Activity_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Activity" ADD CONSTRAINT "Activity_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Attendance" ADD CONSTRAINT "Attendance_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

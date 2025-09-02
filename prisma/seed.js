@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import dayjs from 'dayjs';
 
 const prisma = new PrismaClient();
 
@@ -6,8 +7,8 @@ async function main() {
     // ตัวอย่างข้อมูล student
     const department = await prisma.department.create({
         data: {
-            name: 'Computer Education',
-            shortName: 'CED',
+            name: 'Computer Education(TCT)',
+            shortName: 'TCT',
         }
     })
     const students = 
@@ -15,7 +16,7 @@ async function main() {
             id: '0000000000000',
             fullname: 'Test Student',
             departmentId: department.id,
-            birthdate: new Date('2000-01-01'),
+            birthday: dayjs('2000-01-01'),
             email: 'test@example.com',
             phone: '0812345678',
         }

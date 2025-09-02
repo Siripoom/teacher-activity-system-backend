@@ -36,7 +36,7 @@ model Student {
     id           String        @id 
     fullname     String
     departmentId String        @db.Uuid
-    birthdate    DateTime
+    birthday     String
     email        String        @unique
     phone        String?
     profilePic   String?       

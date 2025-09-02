@@ -27,7 +27,6 @@ export const createLog = async (user, action , description) => {
             message: 'Failed to create log',
             error: error.message,
         };
-        console.error("Error creating log for teacher activity:", error);
     }
 }
 

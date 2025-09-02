@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-
+import dayjs from 'dayjs';
 import { validate as isUuid } from 'uuid';
 import { createLog} from './logController.js'; // Adjust the import path as necessary
 
@@ -44,8 +44,8 @@ export const getStudentById = async (req, res) => {
 
 export const createStudent = async (req, res) => {
   try {
-    const { id, fullname, departmentId, birthdate, email, phone, profilePic, status } = req.body;
-    if (!id || !fullname || !departmentId || !birthdate || !email) {
+    const { id, fullname, departmentId, birthday, email, phone, profilePic, status } = req.body;
+    if (!id || !fullname || !departmentId || !birthday || !email) {
       return res.status(400).json({ message: "Required fields (id, fullname, departmentId, birthdate, email) are missing." });
     }
     const newStudent = await prisma.student.create({
@@ -53,7 +53,7 @@ export const createStudent = async (req, res) => {
         id,
         fullname,
         departmentId,
-        birthdate: new Date(birthdate),
+        birthday: dayjs(birthday).format('YYYY-MM-DD'),
         email,
         phone,
         profilePic,
@@ -87,13 +87,13 @@ export const createStudent = async (req, res) => {
 export const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullname, departmentId, birthdate, email, phone, profilePic, status } = req.body;
+    const { fullname, departmentId, birthday, email, phone, profilePic, status } = req.body;
     const updatedStudent = await prisma.student.update({
       where: { id },
       data: {
         fullname,
         departmentId,
-        birthdate: birthdate ? new Date(birthdate) : undefined,
+        birthday: dayjs(birthday).format('YYYY-mm-dd'),
         email,
         phone,
         profilePic,
