@@ -53,7 +53,7 @@ export const createStudent = async (req, res) => {
         id,
         fullname,
         departmentId,
-        birthday: dayjs(birthday).format('YYYY-MM-DD'),
+        birthday: dayjs(birthday).add(543, 'year').format('DD-MM-YYYY'),
         email,
         phone,
         profilePic,
@@ -88,21 +88,30 @@ export const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
     const { fullname, departmentId, birthday, email, phone, profilePic, status } = req.body;
+
+    // Partial update: อัปเดตเฉพาะ field ที่ส่งมา
+    let updateData = {};
+    if (fullname !== undefined) updateData.fullname = fullname;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (birthday !== undefined) {
+      // แปลงเป็น พ.ศ. ถ้าปี < 2500
+      const d = dayjs(birthday, ['YYYY-MM-DD', 'YYYY/MM/DD', 'DD/MM/YYYY', 'DD-MM-YYYY']);
+      let year = d.year();
+      if (year < 2500) year += 543;
+      updateData.birthday = d.set('year', year).format('YYYY-MM-DD');
+    }
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (profilePic !== undefined) updateData.profilePic = profilePic;
+    if (status !== undefined) updateData.status = status;
+
     const updatedStudent = await prisma.student.update({
       where: { id },
-      data: {
-        fullname,
-        departmentId,
-        birthday: dayjs(birthday).format('YYYY-mm-dd'),
-        email,
-        phone,
-        profilePic,
-        status
-      }
+      data: updateData
     });
     if (!updatedStudent) {
       return res.status(404).json({ message: "Student not found." });
-    } 
+    }
     await createLog(req.user, "Student", `Student record with ID: ${id} updated successfully.`)
     res.status(200).json(updatedStudent);
   } catch (error) {

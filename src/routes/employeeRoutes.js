@@ -42,7 +42,7 @@ router.route('/')
 
 router.route('/:id')
   .get(getEmployeeById)
-  .put(updateEmployeeValidationRules, validateRequest, updateEmployee)
+  .put(updateEmployee)
   .delete(deleteEmployee);
 
 export default router;

@@ -13,11 +13,25 @@ export const createActivity = async (req, res) => {
       employeeId,
       peopleCount,
       maxPeopleCount,
-      fileActivity,
       hour,
       status
     } = req.body;
 
+    // เก็บชื่อไฟล์ทั้งหมด
+    let fileActivityObj = {
+      images: [],
+      pdf: []
+    };
+    if (req.files) {
+      if (req.files.images) {
+        fileActivityObj.images = req.files.images.slice(0, 5).map(f => f.filename);
+      }
+      if (req.files.pdf) {
+        fileActivityObj.pdf = req.files.pdf.slice(0, 3).map(f => f.filename);
+      }
+    }
+
+    // สร้าง activity
     const newActivity = await prisma.activity.create({
       data: {
         name,
@@ -26,13 +40,34 @@ export const createActivity = async (req, res) => {
         address,
         departmentId,
         employeeId,
-        peopleCount,
-        maxPeopleCount,
-        fileActivity,
-        hour,
+        peopleCount: peopleCount ? Number(peopleCount) : null,
+        maxPeopleCount: maxPeopleCount ? Number(maxPeopleCount) : null,
+        fileActivity: JSON.stringify(fileActivityObj),
+        hour: hour ? Number(hour) : null,
         status
       }
     });
+
+    // สร้าง FileActivity record สำหรับแต่ละไฟล์
+    const fileRecords = [];
+    for (const img of fileActivityObj.images) {
+      fileRecords.push(prisma.fileActivity.create({
+        data: {
+          activityId: newActivity.id,
+          filepath: img
+        }
+      }));
+    }
+    for (const pdf of fileActivityObj.pdf) {
+      fileRecords.push(prisma.fileActivity.create({
+        data: {
+          activityId: newActivity.id,
+          filepath: pdf
+        }
+      }));
+    }
+    await Promise.all(fileRecords);
+
     res.status(201).json(newActivity);
   } catch (error) {
     if (error.code === 'P2003') {

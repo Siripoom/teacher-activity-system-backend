@@ -65,6 +65,15 @@ model Activity {
     department     Department     @relation(fields: [departmentId], references: [id])
     Employee       Employee       @relation(fields: [employeeId], references: [id])
     attendances    Attendance[]
+   FileActivity    FileActivity[]
+}
+
+model FileActivity {
+    id         String   @id @default(uuid()) @db.Uuid
+    activityId String   @db.Uuid
+    filepath   String
+    createdAt  DateTime @default(now())
+    activity   Activity @relation(fields: [activityId], references: [id])
 }
 
 model Log {
@@ -91,6 +100,7 @@ model Attendance {
 enum Role {
     admin
     teacher
+    deleted
 }
 
 enum AttendanceStatus {

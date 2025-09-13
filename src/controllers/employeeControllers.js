@@ -95,7 +95,13 @@ export const updateEmployee = async (req, res) => {
         const { id } = req.params;
         const { fullname, email, password, phone, departmentId, role } = req.body;
 
-        let updateData = { fullname, email, phone, departmentId, role };
+        // อัปเดตเฉพาะ field ที่ส่งมา
+        let updateData = {};
+        if (fullname !== undefined) updateData.fullname = fullname.trim();
+        if (email !== undefined && email.trim() !== "") updateData.email = email.trim();
+        if (phone !== undefined) updateData.phone = phone.trim();
+        if (departmentId !== undefined) updateData.departmentId = departmentId;
+        if (role !== undefined) updateData.role = role;
 
         if (password) {
             updateData.password = await hashPassword(password);
@@ -139,25 +145,32 @@ export const deleteEmployee = async (req, res) => {
             return res.status(404).json({ message: `Employee with ID ${id} not found.` });
         }
 
-        await prisma.employee.delete({
-            where: { id: id }
+        // เปลี่ยน status เป็น deleted แทนการลบ record จริง
+        const updatedEmployee = await prisma.employee.update({
+            where: { id: id },
+            data: { role: 'deleted' },
+            select: {
+                id: true, fullname: true, email: true, phone: true, role: true, departmentId: true, createdAt: true, updatedAt: true
+            }
         });
 
         return res.status(200).json({
-            message: `Successfully deleted employee '${employeeToDelete.fullname}' (ID: ${id}).`
+            message: `Successfully marked employee '${employeeToDelete.fullname}' (ID: ${id}) as deleted.`,
+            employee: updatedEmployee
         });
 
     } catch (error) {
         if (error.code === 'P2003') {
+            console.log(error)
             return res.status(409).json({
-                message: `Cannot delete employee. It is still associated with existing activities or records.`
+                message: `Cannot mark employee as deleted. It is still associated with existing activities or records.`
             });
         }
         if (error.code === 'P2025') {
             return res.status(404).json({ message: `Employee with ID ${req.params.id} not found.` });
         }
 
-        console.error(`Error deleting employee with ID ${req.params.id}:`, error);
+        console.error(`Error marking employee as deleted with ID ${req.params.id}:`, error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };

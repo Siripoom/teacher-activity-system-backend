@@ -18,7 +18,8 @@ export const loginStudent = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
         // console.log("password = ",password ," || birthday = ",dayjs(student.birthdate).add(543, 'year').format('DD-MM-YYYY'));
-        if(dayjs(student.birthdate).add(543, 'year').format('DD-MM-YYYY') !== password){
+        if(dayjs(student.birthday).format('DD-MM-YYYY') !== dayjs(password).format('DD-MM-YYYY')){
+            console.log(dayjs(student.birthday).format('DD-MM-YYYY'))
             return res.status(401).json({ message: "Invalid password" });
         }
         
