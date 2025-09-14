@@ -5,8 +5,10 @@ import {
   getAllActivities,
   getActivityById,
   updateActivity,
-  deleteActivity
+  deleteActivity,
 } from '../controllers/activityController.js';
+// PATCH /api/activities/:id/status -> เปลี่ยน status อย่างเดียว
+
 import multer from 'multer';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -48,7 +50,7 @@ const router = express.Router();
 //   body('status').optional().isIn(['planned', 'inprogress', 'completed', 'cancelled']).withMessage('Invalid status.')
 // ];
 
-// router.use(authMiddleware); // Apply authentication middleware to all routes
+router.use(authMiddleware); // Apply authentication middleware to all routes
 router.route('/')
   .get(getAllActivities)
   .post(upload.fields([
@@ -58,7 +60,11 @@ router.route('/')
 
 router.route('/:id')
   .get(getActivityById)
-  .put(updateActivity)
+  .put(upload.fields([
+    { name: 'images', maxCount: 5 },
+    { name: 'pdf', maxCount: 3 }
+  ]),updateActivity)
   .delete(deleteActivity);
+
 
 export default router;

@@ -1,3 +1,14 @@
+// Log helper
+const logAction = async (action, req, description) => {
+    await prisma.log.create({
+        data: {
+            action,
+            fullname: req.user?.fullname || 'unknown',
+            role: req.user?.role || 'unknown',
+            description
+        }
+    });
+};
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -33,7 +44,8 @@ export const createEmployee = async (req, res) => {
             }
         });
 
-        res.status(201).json(newEmployee);
+    await logAction('create_employee', req, `Created employee '${newEmployee.fullname}' (ID: ${newEmployee.id})`);
+    res.status(201).json(newEmployee);
     } catch (error) {
         if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
             return res.status(409).json({ message: 'This email is already in use.' });
@@ -118,8 +130,9 @@ export const updateEmployee = async (req, res) => {
             }
         });
 
-        res.status(200).json(updatedEmployee);
-    } catch (error) {
+    await logAction('update_employee', req, `Updated employee '${id}'`);
+    res.status(200).json(updatedEmployee);
+    } catch (error) { 
         if (error.code === 'P2025') {
             return res.status(404).json({ message: `Employee with ID ${id} not found` });
         }
@@ -154,6 +167,7 @@ export const deleteEmployee = async (req, res) => {
             }
         });
 
+        await logAction('delete_employee', req, `Marked employee '${employeeToDelete?.fullname}' (ID: ${id}) as deleted.`);
         return res.status(200).json({
             message: `Successfully marked employee '${employeeToDelete.fullname}' (ID: ${id}) as deleted.`,
             employee: updatedEmployee

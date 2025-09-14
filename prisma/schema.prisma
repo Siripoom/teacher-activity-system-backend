@@ -8,93 +8,92 @@ datasource db {
 }
 
 model Department {
-    id         String     @id @default(uuid()) @db.Uuid
-    name       String
-    shortName  String
-    createdAt  DateTime   @default(now())
-    updatedAt  DateTime   @updatedAt
-    Employees  Employee[]
-    students   Student[]
-    activities Activity[]
+    id         String     @id @default(uuid()) @db.Uuid // รหัสแผนก (UUID)
+    name       String     // ชื่อแผนก
+    shortName  String     // ชื่อย่อแผนก
+    createdAt  DateTime   @default(now()) // วันที่สร้าง
+    updatedAt  DateTime   @updatedAt      // วันที่แก้ไขล่าสุด
+    Employees  Employee[] // รายชื่อพนักงานในแผนก
+    students   Student[]  // รายชื่อนักศึกษาในแผนก
+    activities Activity[] // รายการกิจกรรมของแผนก
 }
 
 model Employee {
-    id           String     @id @default(uuid()) @db.Uuid
-    fullname     String
-    email        String     @unique
-    password     String
-    phone        String?
-    departmentId String?     @db.Uuid
-    department   Department? @relation(fields: [departmentId], references: [id])
-    role         Role       @default(teacher)
-    createdAt    DateTime   @default(now())
-    updatedAt    DateTime   @updatedAt
-    activities   Activity[]
+    id           String     @id @default(uuid()) @db.Uuid // รหัสพนักงาน (UUID)
+    fullname     String     // ชื่อ-นามสกุล
+    email        String     @unique // อีเมล
+    password     String     // รหัสผ่าน
+    phone        String?    // เบอร์โทรศัพท์
+    departmentId String?     @db.Uuid // รหัสแผนกที่สังกัด
+    department   Department? @relation(fields: [departmentId], references: [id]) // ข้อมูลแผนกที่สังกัด
+    role         Role       @default(teacher) // บทบาท (admin/teacher/deleted)
+    createdAt    DateTime   @default(now()) // วันที่สร้าง
+    updatedAt    DateTime   @updatedAt      // วันที่แก้ไขล่าสุด
+    activities   Activity[] // กิจกรรมที่รับผิดชอบ
 }
 
 model Student {
-    id           String        @id 
-    fullname     String
-    departmentId String        @db.Uuid
-    birthday     String
-    email        String        @unique
-    phone        String?
-    profilePic   String?       
-    createdAt    DateTime      @default(now())
-    updatedAt    DateTime      @updatedAt
-    status       StudentStatus @default(active)
-    attendances  Attendance[]
-    department   Department    @relation(fields: [departmentId], references: [id])
+    id           String        @id // รหัสนักศึกษา
+    fullname     String        // ชื่อ-นามสกุล
+    departmentId String        @db.Uuid // รหัสแผนกที่สังกัด
+    birthday     String        // วันเกิด (พศ)
+    email        String        @unique // อีเมล
+    phone        String?       // เบอร์โทรศัพท์
+    profilePic   String?       // รูปโปรไฟล์
+    createdAt    DateTime      @default(now()) // วันที่สร้าง
+    updatedAt    DateTime      @updatedAt      // วันที่แก้ไขล่าสุด
+    status       StudentStatus @default(active) // สถานะนักศึกษา (active/graduated/expelled)
+    attendances  Attendance[]  // ข้อมูลการเข้าร่วมกิจกรรม
+    department   Department    @relation(fields: [departmentId], references: [id]) // ข้อมูลแผนกที่สังกัด
 }
 
 model Activity {
-    id             String         @id @default(uuid()) @db.Uuid
-    name           String
-    description    String?
-    date           DateTime
-    address        String
-    departmentId   String         @db.Uuid
-    employeeId     String         @db.Uuid
-    peopleCount    Int?
-    maxPeopleCount Int?
-    fileActivity   String?
-    hour           Int?
-    status         ActivityStatus @default(planned)
-    createdAt      DateTime       @default(now())
-    updatedAt      DateTime       @updatedAt
-    department     Department     @relation(fields: [departmentId], references: [id])
-    Employee       Employee       @relation(fields: [employeeId], references: [id])
-    attendances    Attendance[]
-   FileActivity    FileActivity[]
+    id             String         @id @default(uuid()) @db.Uuid // รหัสกิจกรรม (UUID)
+    name           String         // ชื่อกิจกรรม
+    description    String?        // รายละเอียดกิจกรรม
+    date           DateTime       // วันที่จัดกิจกรรม
+    address        String         // สถานที่จัดกิจกรรม
+    departmentId   String         @db.Uuid // รหัสแผนกที่จัดกิจกรรม
+    employeeId     String         @db.Uuid // รหัสพนักงานผู้รับผิดชอบ
+    peopleCount    Int?           // จำนวนผู้เข้าร่วม
+    maxPeopleCount Int?           // จำนวนผู้เข้าร่วมสูงสุด
+    hour           Int?           // จำนวนชั่วโมงกิจกรรม
+    status         ActivityStatus @default(planned) // สถานะกิจกรรม
+    createdAt      DateTime       @default(now()) // วันที่สร้าง
+    updatedAt      DateTime       @updatedAt      // วันที่แก้ไขล่าสุด
+    department     Department     @relation(fields: [departmentId], references: [id]) // ข้อมูลแผนก
+    Employee       Employee       @relation(fields: [employeeId], references: [id]) // ข้อมูลพนักงาน
+    attendances    Attendance[]   // ข้อมูลการเข้าร่วมกิจกรรม
+    FileActivity   FileActivity[] // ไฟล์ที่เกี่ยวข้องกับกิจกรรม
 }
 
 model FileActivity {
-    id         String   @id @default(uuid()) @db.Uuid
-    activityId String   @db.Uuid
-    filepath   String
-    createdAt  DateTime @default(now())
-    activity   Activity @relation(fields: [activityId], references: [id])
+    id         String   @id @default(uuid()) @db.Uuid // รหัสไฟล์กิจกรรม (UUID)
+    activityId String   @db.Uuid // รหัสกิจกรรมที่ไฟล์นี้เกี่ยวข้อง
+    filepath   String   // ชื่อไฟล์/ที่อยู่ไฟล์
+    createdAt  DateTime @default(now()) // วันที่อัพโหลดไฟล์
+    activity   Activity @relation(fields: [activityId], references: [id]) // ข้อมูลกิจกรรม
 }
 
 model Log {
-    id        String   @id @default(uuid()) @db.Uuid
-    action    String
-    fullname  String
-    role      String
-    description String?
-    createdAt DateTime @default(now())
+    id        String   @id @default(uuid()) @db.Uuid // รหัส log (UUID)
+    action    String   // กิจกรรมที่ทำ (action)
+    fullname  String   // ชื่อผู้ทำรายการ
+    role      String   // บทบาทผู้ทำรายการ
+    description String? // รายละเอียดเพิ่มเติม
+    createdAt DateTime @default(now()) // วันที่บันทึก log
 }
 
 model Attendance {
-    id         String           @id @default(uuid()) @db.Uuid
-    studentId  String           
-    activityId String           @db.Uuid
-    student    Student          @relation(fields: [studentId], references: [id])
-    activity   Activity         @relation(fields: [activityId], references: [id])
-    reason     String?
-    status     AttendanceStatus @default(joined)
-    createdAt  DateTime         @default(now())
-    updatedAt  DateTime         @updatedAt
+    id         String           @id @default(uuid()) @db.Uuid // รหัสการเข้าร่วมกิจกรรม (UUID)
+    studentId  String           // รหัสนักศึกษาที่เข้าร่วม
+    activityId String           @db.Uuid // รหัสกิจกรรมที่เข้าร่วม
+    student    Student          @relation(fields: [studentId], references: [id]) // ข้อมูลนักศึกษา
+    activity   Activity         @relation(fields: [activityId], references: [id]) // ข้อมูลกิจกรรม
+    reason     String?          // เหตุผลการเข้าร่วม/ไม่เข้าร่วม
+    status     AttendanceStatus @default(joined) // สถานะการเข้าร่วม
+    createdAt  DateTime         @default(now()) // วันที่สร้าง
+    updatedAt  DateTime         @updatedAt      // วันที่แก้ไขล่าสุด
 }
 
 enum Role {

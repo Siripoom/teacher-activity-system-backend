@@ -1,13 +1,11 @@
-// src/controllers/attendanceController.js
-
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 // POST /api/activities/:activityId/attend
 export const joinActivity = async (req, res) => {
   try {
-    const { activityId } = req.params;
-    const { studentId, reason } = req.body;
+  const { activityId } = req.params;
+  const { studentId } = req.body;
 
     // 1. เช็คว่านักศึกษาคนนี้เคยสมัครกิจกรรมนี้ไปแล้วหรือยัง
     const existingAttendance = await prisma.attendance.findFirst({
@@ -34,13 +32,12 @@ export const joinActivity = async (req, res) => {
     // สร้าง record การเข้าร่วม
     const newAttendance = await prisma.attendance.create({
       data: {
-        reason,
         status: 'joined',
         student: {
-          connect: { id: studentId } // เชื่อมกับ Student ที่มี id ตรงกับ studentId
+          connect: { id: studentId }
         },
         activity: {
-          connect: { id: activityId } // เชื่อมกับ Activity ที่มี id ตรงกับ activityId
+          connect: { id: activityId }
         }
       }
     });
@@ -53,6 +50,15 @@ export const joinActivity = async (req, res) => {
       }
     });
 
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'join_activity',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Student ${studentId} joined activity ${activityId}`
+      }
+    });
     res.status(201).json(newAttendance);
   } catch (error) {
     if (error.code === 'P2003') {
@@ -70,17 +76,39 @@ export const updateAttendanceStatus = async (req, res) => {
     const { attendanceId } = req.params;
     const { status, reason } = req.body;
 
+    // Partial update เฉพาะ field ที่ส่งมา
+    let updateData = {};
+    if (status !== undefined) {
+      updateData.status = status;
+      // เฉพาะสถานะ rejected หรือ uncompleted เท่านั้นที่บันทึก reason
+      if (["rejected", "uncompleted"].includes(status)) {
+        updateData.reason = reason !== undefined ? reason : null;
+      } else {
+        updateData.reason = null;
+      }
+    }
+    if (reason !== undefined && (updateData.status === undefined || ["rejected", "uncompleted"].includes(updateData.status))) {
+      updateData.reason = reason;
+    }
+
     const updatedAttendance = await prisma.attendance.update({
       where: { id: attendanceId },
-      data: {
-        status,
-        reason
-      },
+      data: updateData,
       include: { student: true, activity: true }
+    });
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'update_attendance',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Attendance ${attendanceId} updated${updateData.status ? `, status: ${updateData.status}` : ''}${updateData.reason ? `, reason: ${updateData.reason}` : ''}`
+      }
     });
     res.status(200).json(updatedAttendance);
   } catch (error) {
     if (error.code === 'P2025') {
+      console.log(error)
       return res.status(404).json({ message: `Attendance record with ID ${req.params.attendanceId} not found.` });
     }
     console.error("Error updating attendance:", error);
@@ -108,6 +136,15 @@ export const leaveActivity = async (req, res) => {
       }
     });
 
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'leave_activity',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Attendance ${attendanceId} (student ${attendanceToDelete?.studentId}) left activity ${attendanceToDelete?.activityId}`
+      }
+    });
     res.status(200).json({ message: "Successfully left the activity." });
   } catch (error) {
     res.status(500).json({ message: 'Internal server error' });

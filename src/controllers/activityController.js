@@ -1,4 +1,9 @@
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const prisma = new PrismaClient();
 
 // POST /api/activities
@@ -18,16 +23,14 @@ export const createActivity = async (req, res) => {
     } = req.body;
 
     // เก็บชื่อไฟล์ทั้งหมด
-    let fileActivityObj = {
-      images: [],
-      pdf: []
-    };
+    let images = [];
+    let pdfs = [];
     if (req.files) {
       if (req.files.images) {
-        fileActivityObj.images = req.files.images.slice(0, 5).map(f => f.filename);
+        images = req.files.images.slice(0, 5).map(f => f.filename);
       }
       if (req.files.pdf) {
-        fileActivityObj.pdf = req.files.pdf.slice(0, 3).map(f => f.filename);
+        pdfs = req.files.pdf.slice(0, 3).map(f => f.filename);
       }
     }
 
@@ -42,7 +45,6 @@ export const createActivity = async (req, res) => {
         employeeId,
         peopleCount: peopleCount ? Number(peopleCount) : null,
         maxPeopleCount: maxPeopleCount ? Number(maxPeopleCount) : null,
-        fileActivity: JSON.stringify(fileActivityObj),
         hour: hour ? Number(hour) : null,
         status
       }
@@ -50,15 +52,16 @@ export const createActivity = async (req, res) => {
 
     // สร้าง FileActivity record สำหรับแต่ละไฟล์
     const fileRecords = [];
-    for (const img of fileActivityObj.images) {
+    for (const img of images) {
       fileRecords.push(prisma.fileActivity.create({
         data: {
           activityId: newActivity.id,
           filepath: img
         }
+
       }));
     }
-    for (const pdf of fileActivityObj.pdf) {
+    for (const pdf of pdfs) {
       fileRecords.push(prisma.fileActivity.create({
         data: {
           activityId: newActivity.id,
@@ -68,6 +71,15 @@ export const createActivity = async (req, res) => {
     }
     await Promise.all(fileRecords);
 
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'create_activity',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Created activity '${name}' (ID: ${newActivity.id}) by employee ${employeeId} in department ${departmentId}`
+      }
+    });
     res.status(201).json(newActivity);
   } catch (error) {
     if (error.code === 'P2003') {
@@ -96,8 +108,14 @@ export const getAllActivities = async (req, res) => {
     const activities = await prisma.activity.findMany({
       where: whereClause,
       include: {
-        department: { select: { name: true, shortName: true } },
-        Employee: { select: { fullname: true, email: true } }
+        department: true,
+        Employee: true,
+        attendances: {
+          include: {
+            student: true
+          }
+        },
+        FileActivity: true
       },
       orderBy: {
         date: 'desc'
@@ -118,12 +136,13 @@ export const getActivityById = async (req, res) => {
       where: { id },
       include: {
         department: true,
-        Employee: { select: { id: true, fullname: true, email: true } },
+        Employee: true,
         attendances: {
           include: {
-            student: { select: { id: true, fullname: true, email: true } }
+            student: true
           }
-        }
+        },
+        FileActivity: true
       }
     });
 
@@ -141,15 +160,91 @@ export const getActivityById = async (req, res) => {
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body };
+    // Partial update เฉพาะ field ที่ส่งมา
+    let updateData = {};
+    const {
+      name,
+      description,
+      date,
+      address,
+      departmentId,
+      employeeId,
+      peopleCount,
+      maxPeopleCount,
+      hour,
+      status
+    } = req.body;
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (date !== undefined) updateData.date = new Date(date);
+    if (address !== undefined) updateData.address = address;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (employeeId !== undefined) updateData.employeeId = employeeId;
+    if (peopleCount !== undefined) updateData.peopleCount = Number(peopleCount);
+    if (maxPeopleCount !== undefined) updateData.maxPeopleCount = Number(maxPeopleCount);
+    if (hour !== undefined) updateData.hour = Number(hour);
+    if (status !== undefined) updateData.status = status;
 
-    if (updateData.date) {
-      updateData.date = new Date(updateData.date);
+    // ถ้ามีไฟล์ใหม่ ให้ลบไฟล์เดิมออกจาก server และลบข้อมูลใน FileActivity
+    let images = [];
+    let pdfs = [];
+    if (req.files && (req.files.images || req.files.pdf)) {
+      // ดึงไฟล์เดิมจาก DB
+      const oldFiles = await prisma.fileActivity.findMany({ where: { activityId: id } });
+      for (const file of oldFiles) {
+        const filePath = path.join(__dirname, '../../uploads/fileActivities', file.filepath);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      // ลบข้อมูลใน FileActivity
+      await prisma.fileActivity.deleteMany({ where: { activityId: id } });
+
+      // เตรียมไฟล์ใหม่
+      if (req.files.images) {
+        images = req.files.images.slice(0, 5).map(f => f.filename);
+      }
+      if (req.files.pdf) {
+        pdfs = req.files.pdf.slice(0, 3).map(f => f.filename);
+      }
     }
-
+    console.log(updateData);
     const updatedActivity = await prisma.activity.update({
       where: { id },
       data: updateData
+    });
+
+    // เพิ่มไฟล์ใหม่ใน FileActivity
+    const fileRecords = [];
+    for (const img of images) {
+      fileRecords.push(prisma.fileActivity.create({
+        data: {
+          activityId: id,
+          filepath: img
+        }
+      }));
+    }
+    for (const pdf of pdfs) {
+      fileRecords.push(prisma.fileActivity.create({
+        data: {
+          activityId: id,
+          filepath: pdf
+        }
+      }));
+    }
+    if (fileRecords.length > 0) {
+      await Promise.all(fileRecords);
+    }
+
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'update_activity',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Updated activity '${id}'${Object.keys(updateData).length ? `, fields: ${Object.keys(updateData).join(', ')}` : ''}`
+      }
     });
     res.status(200).json(updatedActivity);
   } catch (error) {
@@ -170,6 +265,7 @@ export const updateActivity = async (req, res) => {
   }
 };
 
+
 // DELETE /api/activities/:id
 export const deleteActivity = async (req, res) => {
   try {
@@ -180,7 +276,30 @@ export const deleteActivity = async (req, res) => {
       return res.status(404).json({ message: `Activity with ID '${id}' not found.` });
     }
 
+    // ลบ attendances ที่เชื่อมกับ activity
+    await prisma.attendance.deleteMany({ where: { activityId: id } });
+
+    // ลบไฟล์ในเครื่องและข้อมูลใน fileActivity
+    const files = await prisma.fileActivity.findMany({ where: { activityId: id } });
+    for (const file of files) {
+      const filePath = path.join(__dirname, '../../uploads/fileActivities', file.filepath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    await prisma.fileActivity.deleteMany({ where: { activityId: id } });
+
+    // ลบ activity จริง
     await prisma.activity.delete({ where: { id } });
+    // Log action
+    await prisma.log.create({
+      data: {
+        action: 'delete_activity',
+        fullname: req.user?.fullname || 'unknown',
+        role: req.user?.role || 'unknown',
+        description: `Deleted activity '${activityToDelete?.name}' (ID: ${id})`
+      }
+    });
     res.status(200).json({ message: `Successfully deleted activity '${activityToDelete.name}' (ID: ${id}).` });
   } catch (error) {
     if (error.code === 'P2003') {

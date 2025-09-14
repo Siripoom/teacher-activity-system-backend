@@ -1,3 +1,14 @@
+// Log helper
+const logAction = async (action, req, description) => {
+    await prisma.log.create({
+        data: {
+            action,
+            fullname: req.user?.fullname || 'unknown',
+            role: req.user?.role || 'unknown',
+            description
+        }
+    });
+};
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
@@ -28,7 +39,8 @@ export const createDepartment = async (req, res) => {
         const newDepartment = await prisma.department.create({
             data: { name, shortName }
         });
-        return res.status(201).json(newDepartment);
+    await logAction('create_department', req, `Created department '${newDepartment.name}' (ID: ${newDepartment.id})`);
+    return res.status(201).json(newDepartment);
     } catch (error) {
         console.error("Error creating department:", error);
         return res.status(500).json({ message: "Internal server error" });
@@ -77,7 +89,8 @@ export const updateDepartment = async (req, res) => {
             }
         });
 
-        return res.status(200).json(updatedDepartment);
+    await logAction('update_department', req, `Updated department '${id}'`);
+    return res.status(200).json(updatedDepartment);
     } catch (error) {
         if (error.code === 'P2025') {
             return res.status(404).json({ message: `Department with ID ${req.params.id} not found` });
@@ -103,6 +116,7 @@ export const deleteDepartment = async (req, res) => {
             where: { id: id }
         });
 
+        await logAction('delete_department', req, `Deleted department '${departmentToDelete?.name}' (ID: ${id})`);
         return res.status(200).json({
             message: `Successfully deleted department '${departmentToDelete.name}' (ID: ${id}).`
         });

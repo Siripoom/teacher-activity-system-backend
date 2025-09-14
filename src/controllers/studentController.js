@@ -1,3 +1,14 @@
+// Log helper
+const logAction = async (action, req, description) => {
+  await prisma.log.create({
+    data: {
+      action,
+      fullname: req.user?.fullname || 'unknown',
+      role: req.user?.role || 'unknown',
+      description
+    }
+  });
+};
 import { PrismaClient } from '@prisma/client';
 import dayjs from 'dayjs';
 import { validate as isUuid } from 'uuid';
@@ -65,7 +76,8 @@ export const createStudent = async (req, res) => {
     }
 
     await createLog(req.user, "Student", `New student created with ID: ${newStudent.id}`);
-    res.status(201).json(newStudent);
+  await logAction('create_student', req, `Created student '${newStudent.fullname}' (ID: ${newStudent.id})`);
+  res.status(201).json(newStudent);
   } catch (error) {
     if (error.code === 'P2002') {
       const target = error.meta?.target || [];
@@ -113,7 +125,8 @@ export const updateStudent = async (req, res) => {
       return res.status(404).json({ message: "Student not found." });
     }
     await createLog(req.user, "Student", `Student record with ID: ${id} updated successfully.`)
-    res.status(200).json(updatedStudent);
+  await logAction('update_student', req, `Updated student '${id}'`);
+  res.status(200).json(updatedStudent);
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ message: `Student with ID '${req.params.id}' not found to update.` });
@@ -133,7 +146,8 @@ export const deleteStudent = async (req, res) => {
 
     await prisma.student.delete({ where: { id } });
     await createLog(req.user, "Student", `Student record with ID: ${id} deleted successfully.`);
-    res.status(200).json({ message: `Successfully deleted student '${studentToDelete.fullname}' (ID: ${id}).` });
+  await logAction('delete_student', req, `Deleted student '${studentToDelete?.fullname}' (ID: ${id})`);
+  res.status(200).json({ message: `Successfully deleted student '${studentToDelete.fullname}' (ID: ${id}).` });
   } catch (error) {
     if (error.code === 'P2003') {
       return res.status(409).json({ message: 'Cannot delete student. It is still associated with attendance records.' });
