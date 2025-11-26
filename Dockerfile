@@ -1,10 +1,12 @@
 # Multi-stage build for better optimization
 FROM node:18-alpine AS base
 
-# Install system dependencies
+# Install system dependencies including OpenSSL for Prisma
 RUN apk add --no-cache \
     curl \
     dumb-init \
+    openssl \
+    libc6-compat \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /app
@@ -16,12 +18,12 @@ RUN adduser -S nodejs -u 1001
 # Development stage
 FROM base AS development
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and yarn lock
+COPY package*.json yarn.lock ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including dev)
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -42,15 +44,18 @@ CMD ["npm", "run", "dev"]
 # Production stage
 FROM base AS production
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and yarn lock
+COPY package*.json yarn.lock ./
 COPY prisma ./prisma/
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies first (needed for Prisma generate)
+RUN yarn install --frozen-lockfile
 
 # Generate Prisma client
 RUN npx prisma generate
+
+# Remove devDependencies and clean cache
+RUN yarn install --production --frozen-lockfile && yarn cache clean
 
 # Copy application code
 COPY --chown=nodejs:nodejs . .

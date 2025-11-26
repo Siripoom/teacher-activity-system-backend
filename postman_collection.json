@@ -1,0 +1,818 @@
+{
+  "info": {
+    "name": "Teacher Activity System API",
+    "description": "Postman collection for testing Teacher Activity System backend APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login Student",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"student_id_here\",\n  \"birthday\": \"2000-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Employees",
+      "item": [
+        {
+          "name": "Get All Employees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Employee By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "employee-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+66812345678\",\n  \"departmentId\": \"department-uuid-here\",\n  \"role\": \"teacher\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employees",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"John Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"phone\": \"+66887654321\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "employee-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Employee",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employees/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "employees", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "employee-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "Get All Students",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student By ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/students/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "student-id-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Student",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"65010001\",\n  \"fullname\": \"Jane Smith\",\n  \"departmentId\": \"department-uuid-here\",\n  \"birthday\": \"2003-05-15\",\n  \"email\": \"jane.smith@student.example.com\",\n  \"phone\": \"+66898765432\",\n  \"status\": \"active\",\n  \"profilePic\": \"https://example.com/profile.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"Jane Updated\",\n  \"email\": \"jane.updated@student.example.com\",\n  \"phone\": \"+66899999999\",\n  \"status\": \"graduated\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/students/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "student-id-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Student",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/students/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "students", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "student-id-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Departments",
+      "item": [
+        {
+          "name": "Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/departments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Department By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/departments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "department-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Computer Engineering\",\n  \"shortName\": \"CPE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/departments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Computer Engineering Updated\",\n  \"shortName\": \"CPE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/departments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "department-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Department",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/departments/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "departments", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "department-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Activities",
+      "item": [
+        {
+          "name": "Get All Activities",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity By ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/activities/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "activity-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Activity",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Annual Sports Day",
+                  "type": "text"
+                },
+                {
+                  "key": "date",
+                  "value": "2025-03-15T08:00:00.000Z",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "University Stadium",
+                  "type": "text"
+                },
+                {
+                  "key": "departmentId",
+                  "value": "department-uuid-here",
+                  "type": "text"
+                },
+                {
+                  "key": "employeeId",
+                  "value": "employee-uuid-here",
+                  "type": "text"
+                },
+                {
+                  "key": "peopleCount",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "maxPeopleCount",
+                  "value": "100",
+                  "type": "text"
+                },
+                {
+                  "key": "hour",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "planned",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "pdf",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/activities",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Activity",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Updated Activity Name",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "inprogress",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                },
+                {
+                  "key": "pdf",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/activities/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "activity-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Activity",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/activities/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "activity-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Attendances",
+      "item": [
+        {
+          "name": "Join Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": \"student-id-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/activities/:activityId/attend",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities", ":activityId", "attend"],
+              "variable": [
+                {
+                  "key": "activityId",
+                  "value": "activity-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity Attendances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/activities/:activityId/attendances",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "activities", ":activityId", "attendances"],
+              "variable": [
+                {
+                  "key": "activityId",
+                  "value": "activity-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Attendance Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"accepted\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances/:attendanceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances", ":attendanceId"],
+              "variable": [
+                {
+                  "key": "attendanceId",
+                  "value": "attendance-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Leave Activity",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attendances/:attendanceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "attendances", ":attendanceId"],
+              "variable": [
+                {
+                  "key": "attendanceId",
+                  "value": "attendance-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Files",
+      "item": [
+        {
+          "name": "Upload CSV File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file/upload-csv",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file", "upload-csv"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity File By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file/activityfile/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file", "activityfile", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "file-uuid-here"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      },
+      "response": []
+    }
+  ]
+}

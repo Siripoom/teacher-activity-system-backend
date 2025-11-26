@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-// import prisma from './config/db.js'; // นำ Prisma Client มาใช้
+import prisma from './config/db.js'; // นำ Prisma Client มาใช้
 import multer from 'multer';
 import { parse } from 'csv-parse';
 import fs from 'fs';
