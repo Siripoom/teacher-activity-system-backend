@@ -1,171 +1,347 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import prisma from "../config/db.js";
 
-// POST /api/activities/:activityId/attend
-export const joinActivity = async (req, res) => {
+// ดึงข้อมูลการเข้าร่วมกิจกรรมทั้งหมด
+export const getAllAttendances = async (req, res) => {
   try {
-  const { activityId } = req.params;
-  const { studentId } = req.body;
+    const { status, activityId, userId } = req.query;
 
-    // 1. เช็คว่านักศึกษาคนนี้เคยสมัครกิจกรรมนี้ไปแล้วหรือยัง
-    const existingAttendance = await prisma.attendance.findFirst({
-      where: {
-        studentId: studentId,
-        activityId: activityId
-      }
-    });
+    const where = {};
+    if (status) where.status = status;
+    if (activityId) where.activityId = activityId;
+    if (userId) where.userId = userId;
 
-
-    if (existingAttendance) {
-      return res.status(409).json({ message: "You have already joined this activity." });
-    }
-
-    const activity = await prisma.activity.findUnique({
-      where: { id: activityId },
-      select: { peopleCount: true, maxPeopleCount: true }
-    });
-
-    if (activity && activity.maxPeopleCount !== null && activity.peopleCount >= activity.maxPeopleCount) {
-      return res.status(409).json({ message: "This activity is already full." });
-    }
-
-    // สร้าง record การเข้าร่วม
-    const newAttendance = await prisma.attendance.create({
-      data: {
-        status: 'joined',
-        student: {
-          connect: { id: studentId }
+    const attendances = await prisma.attendance.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            department: true,
+          },
         },
         activity: {
-          connect: { id: activityId }
-        }
-      }
+          include: {
+            department: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    // อัปเดต peopleCount ในตาราง Activity
-    await prisma.activity.update({
-      where: { id: activityId },
-      data: {
-        peopleCount: { increment: 1 }
-      }
-    });
-
-    // Log action
-    await prisma.log.create({
-      data: {
-        action: 'join_activity',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Student ${studentId} joined activity ${activityId}`
-      }
-    });
-    res.status(201).json(newAttendance);
+    res.json(attendances);
   } catch (error) {
-    if (error.code === 'P2003') {
-      return res.status(404).json({ message: `Student or Activity not found.` });
-    }
-    console.error("Error joining activity:", error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-
-// PUT /api/attendances/:attendanceId
-export const updateAttendanceStatus = async (req, res) => {
+// ดึงข้อมูลการเข้าร่วมกิจกรรมตาม ID
+export const getAttendanceById = async (req, res) => {
   try {
-    const { attendanceId } = req.params;
-    const { status, reason } = req.body;
+    const { id } = req.params;
 
-    // Partial update เฉพาะ field ที่ส่งมา
-    let updateData = {};
-    if (status !== undefined) {
-      updateData.status = status;
-      // เฉพาะสถานะ rejected หรือ uncompleted เท่านั้นที่บันทึก reason
-      if (["rejected", "uncompleted"].includes(status)) {
-        updateData.reason = reason !== undefined ? reason : null;
-      } else {
-        updateData.reason = null;
-      }
+    const attendance = await prisma.attendance.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            department: true,
+          },
+        },
+        activity: {
+          include: {
+            department: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลการเข้าร่วมกิจกรรม" });
     }
-    if (reason !== undefined && (updateData.status === undefined || ["rejected", "uncompleted"].includes(updateData.status))) {
-      updateData.reason = reason;
+
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// สร้างการเข้าร่วมกิจกรรม
+export const createAttendance = async (req, res) => {
+  try {
+    const { userId, activityId, reason, status } = req.body;
+
+    if (!userId || !activityId) {
+      return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    }
+
+    // ตรวจสอบว่าผู้ใช้เป็นนักศึกษา
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.userType !== "student") {
+      return res
+        .status(400)
+        .json({ error: "ผู้เข้าร่วมกิจกรรมต้องเป็นนักศึกษาเท่านั้น" });
+    }
+
+    // ตรวจสอบว่ากิจกรรมมีอยู่จริง
+    const activity = await prisma.activity.findUnique({
+      where: { id: activityId },
+    });
+
+    if (!activity) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลกิจกรรม" });
+    }
+
+    // ตรวจสอบว่าลงทะเบียนซ้ำหรือไม่
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        userId,
+        activityId,
+      },
+    });
+
+    if (existingAttendance) {
+      return res.status(400).json({ error: "ลงทะเบียนกิจกรรมนี้แล้ว" });
+    }
+
+    const newAttendance = await prisma.attendance.create({
+      data: {
+        userId,
+        activityId,
+        reason,
+        status: status || "joined",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+          },
+        },
+        activity: {
+          include: {
+            department: true,
+          },
+        },
+      },
+    });
+
+    // อัปเดตจำนวนผู้เข้าร่วมในกิจกรรม
+    const attendanceCount = await prisma.attendance.count({
+      where: {
+        activityId,
+        status: {
+          in: ["joined", "accepted", "completed"],
+        },
+      },
+    });
+
+    await prisma.activity.update({
+      where: { id: activityId },
+      data: {
+        peopleCount: attendanceCount,
+      },
+    });
+
+    res.status(201).json(newAttendance);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// อัปเดตข้อมูลการเข้าร่วมกิจกรรม
+export const updateAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, status } = req.body;
+
+    const existingAttendance = await prisma.attendance.findUnique({
+      where: { id },
+    });
+
+    if (!existingAttendance) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลการเข้าร่วมกิจกรรม" });
     }
 
     const updatedAttendance = await prisma.attendance.update({
-      where: { id: attendanceId },
-      data: updateData,
-      include: { student: true, activity: true }
-    });
-    // Log action
-    await prisma.log.create({
+      where: { id },
       data: {
-        action: 'update_attendance',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Attendance ${attendanceId} updated${updateData.status ? `, status: ${updateData.status}` : ''}${updateData.reason ? `, reason: ${updateData.reason}` : ''}`
-      }
+        reason,
+        status,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+          },
+        },
+        activity: {
+          include: {
+            department: true,
+          },
+        },
+      },
     });
-    res.status(200).json(updatedAttendance);
-  } catch (error) {
-    if (error.code === 'P2025') {
-      console.log(error)
-      return res.status(404).json({ message: `Attendance record with ID ${req.params.attendanceId} not found.` });
-    }
-    console.error("Error updating attendance:", error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
 
-// DELETE /api/attendances/:attendanceId
-export const leaveActivity = async (req, res) => {
-  try {
-    const { attendanceId } = req.params;
-    const attendanceToDelete = await prisma.attendance.findUnique({
-      where: { id: attendanceId }
+    // อัปเดตจำนวนผู้เข้าร่วมในกิจกรรม
+    const attendanceCount = await prisma.attendance.count({
+      where: {
+        activityId: existingAttendance.activityId,
+        status: {
+          in: ["joined", "accepted", "completed"],
+        },
+      },
     });
-    if (!attendanceToDelete) {
-      return res.status(404).json({ message: `Attendance record not found.` });
-    }
-
-    await prisma.attendance.delete({ where: { id: attendanceId } });
 
     await prisma.activity.update({
-      where: { id: attendanceToDelete.activityId },
+      where: { id: existingAttendance.activityId },
       data: {
-        peopleCount: { decrement: 1 }
-      }
+        peopleCount: attendanceCount,
+      },
     });
 
-    // Log action
-    await prisma.log.create({
-      data: {
-        action: 'leave_activity',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Attendance ${attendanceId} (student ${attendanceToDelete?.studentId}) left activity ${attendanceToDelete?.activityId}`
-      }
-    });
-    res.status(200).json({ message: "Successfully left the activity." });
+    res.json(updatedAttendance);
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// GET /api/activities/:activityId/attendances
-export const getActivityAttendances = async (req, res) => {
+// ลบการเข้าร่วมกิจกรรม
+export const deleteAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingAttendance = await prisma.attendance.findUnique({
+      where: { id },
+    });
+
+    if (!existingAttendance) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลการเข้าร่วมกิจกรรม" });
+    }
+
+    const activityId = existingAttendance.activityId;
+
+    await prisma.attendance.delete({
+      where: { id },
+    });
+
+    // อัปเดตจำนวนผู้เข้าร่วมในกิจกรรม
+    const attendanceCount = await prisma.attendance.count({
+      where: {
+        activityId,
+        status: {
+          in: ["joined", "accepted", "completed"],
+        },
+      },
+    });
+
+    await prisma.activity.update({
+      where: { id: activityId },
+      data: {
+        peopleCount: attendanceCount,
+      },
+    });
+
+    res.json({ message: "ลบการเข้าร่วมกิจกรรมเรียบร้อยแล้ว" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ดึงข้อมูลการเข้าร่วมกิจกรรมของนักศึกษาคนหนึ่ง
+export const getAttendancesByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        activity: {
+          include: {
+            department: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json(attendances);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ดึงข้อมูลการเข้าร่วมกิจกรรมของกิจกรรมหนึ่ง
+export const getAttendancesByActivity = async (req, res) => {
   try {
     const { activityId } = req.params;
+
     const attendances = await prisma.attendance.findMany({
-      where: { activityId: activityId },
-      include: {
-        student: {
-          select: { id: true, fullname: true, email: true }
-        }
+      where: {
+        activityId,
       },
-      orderBy: { createdAt: 'asc' }
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            department: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
-    res.status(200).json(attendances);
+
+    res.json(attendances);
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };

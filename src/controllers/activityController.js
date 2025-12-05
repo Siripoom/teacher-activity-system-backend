@@ -1,12 +1,99 @@
-import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const prisma = new PrismaClient();
+import prisma from "../config/db.js";
 
-// POST /api/activities
+// ดึงข้อมูลกิจกรรมทั้งหมด
+export const getAllActivities = async (req, res) => {
+  try {
+    const { status, departmentId, responsibleId } = req.query;
+
+    const where = {};
+    if (status) where.status = status;
+    if (departmentId) where.departmentId = departmentId;
+    if (responsibleId) where.responsibleId = responsibleId;
+
+    const activities = await prisma.activity.findMany({
+      where,
+      include: {
+        department: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+        attendances: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                studentId: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        fileActivities: true,
+      },
+      orderBy: {
+        date: "desc",
+      },
+    });
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ดึงข้อมูลกิจกรรมตาม ID
+export const getActivityById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const activity = await prisma.activity.findUnique({
+      where: { id },
+      include: {
+        department: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            userType: true,
+          },
+        },
+        attendances: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                studentId: true,
+                fullname: true,
+                email: true,
+                phone: true,
+                department: true,
+              },
+            },
+          },
+        },
+        fileActivities: true,
+      },
+    });
+
+    if (!activity) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลกิจกรรม" });
+    }
+
+    res.json(activity);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// สร้างกิจกรรมใหม่
 export const createActivity = async (req, res) => {
   try {
     const {
@@ -15,26 +102,30 @@ export const createActivity = async (req, res) => {
       date,
       address,
       departmentId,
-      employeeId,
+      responsibleId,
       peopleCount,
       maxPeopleCount,
       hour,
-      status
     } = req.body;
 
-    // เก็บชื่อไฟล์ทั้งหมด
-    let images = [];
-    let pdfs = [];
-    if (req.files) {
-      if (req.files.images) {
-        images = req.files.images.slice(0, 5).map(f => f.filename);
-      }
-      if (req.files.pdf) {
-        pdfs = req.files.pdf.slice(0, 3).map(f => f.filename);
-      }
+    if (!name || !date || !address || !departmentId || !responsibleId) {
+      return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
-    // สร้าง activity
+    // ตรวจสอบว่าผู้รับผิดชอบเป็นพนักงาน (admin หรือ teacher)
+    const responsible = await prisma.user.findUnique({
+      where: { id: responsibleId },
+    });
+
+    if (
+      !responsible ||
+      (responsible.userType !== "admin" && responsible.userType !== "teacher")
+    ) {
+      return res
+        .status(400)
+        .json({ error: "ผู้รับผิดชอบต้องเป็นพนักงาน (admin หรือ teacher)" });
+    }
+
     const newActivity = await prisma.activity.create({
       data: {
         name,
@@ -42,270 +133,168 @@ export const createActivity = async (req, res) => {
         date: new Date(date),
         address,
         departmentId,
-        employeeId,
-        peopleCount: peopleCount ? Number(peopleCount) : null,
-        maxPeopleCount: maxPeopleCount ? Number(maxPeopleCount) : null,
-        hour: hour ? Number(hour) : null,
-        status
-      }
+        responsibleId,
+        peopleCount,
+        maxPeopleCount,
+        hour,
+      },
+      include: {
+        department: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+      },
     });
 
-    // สร้าง FileActivity record สำหรับแต่ละไฟล์
-    const fileRecords = [];
-    for (const img of images) {
-      fileRecords.push(prisma.fileActivity.create({
-        data: {
-          activityId: newActivity.id,
-          filepath: img
-        }
-
-      }));
-    }
-    for (const pdf of pdfs) {
-      fileRecords.push(prisma.fileActivity.create({
-        data: {
-          activityId: newActivity.id,
-          filepath: pdf
-        }
-      }));
-    }
-    await Promise.all(fileRecords);
-
-    // Log action
-    await prisma.log.create({
-      data: {
-        action: 'create_activity',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Created activity '${name}' (ID: ${newActivity.id}) by employee ${employeeId} in department ${departmentId}`
-      }
-    });
     res.status(201).json(newActivity);
   } catch (error) {
-    if (error.code === 'P2003') {
-      const fieldName = error.meta?.field_name || '';
-      if (fieldName.includes('departmentId')) {
-        return res.status(404).json({ message: `Department with ID '${req.body.departmentId}' not found.` });
-      }
-      if (fieldName.includes('employeeId')) {
-        return res.status(404).json({ message: `Employee with ID '${req.body.employeeId}' not found.` });
-      }
-    }
-    console.error("Error creating activity:", error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// GET /api/activities
-export const getAllActivities = async (req, res) => {
-  try {
-    const { departmentId, status } = req.query;
-    const whereClause = {};
-
-    if (departmentId) whereClause.departmentId = departmentId;
-    if (status) whereClause.status = status;
-
-    const activities = await prisma.activity.findMany({
-      where: whereClause,
-      include: {
-        department: true,
-        Employee: true,
-        attendances: {
-          include: {
-            student: true
-          }
-        },
-        FileActivity: true
-      },
-      orderBy: {
-        date: 'desc'
-      }
-    });
-    res.status(200).json(activities);
-  } catch (error) {
-    console.error("Error fetching activities:", error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-// GET /api/activities/:id
-export const getActivityById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const activity = await prisma.activity.findUnique({
-      where: { id },
-      include: {
-        department: true,
-        Employee: true,
-        attendances: {
-          include: {
-            student: true
-          }
-        },
-        FileActivity: true
-      }
-    });
-
-    if (!activity) {
-      return res.status(404).json({ message: `Activity with ID '${id}' not found.` });
-    }
-    res.status(200).json(activity);
-  } catch (error) {
-    console.error(`Error fetching activity with ID ${id}:`, error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-// PUT /api/activities/:id
+// อัปเดตข้อมูลกิจกรรม
 export const updateActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    // Partial update เฉพาะ field ที่ส่งมา
-    let updateData = {};
     const {
       name,
       description,
       date,
       address,
       departmentId,
-      employeeId,
+      responsibleId,
       peopleCount,
       maxPeopleCount,
       hour,
-      status
+      status,
     } = req.body;
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (date !== undefined) updateData.date = new Date(date);
-    if (address !== undefined) updateData.address = address;
-    if (departmentId !== undefined) updateData.departmentId = departmentId;
-    if (employeeId !== undefined) updateData.employeeId = employeeId;
-    if (peopleCount !== undefined) updateData.peopleCount = Number(peopleCount);
-    if (maxPeopleCount !== undefined) updateData.maxPeopleCount = Number(maxPeopleCount);
-    if (hour !== undefined) updateData.hour = Number(hour);
-    if (status !== undefined) updateData.status = status;
 
-    // ถ้ามีไฟล์ใหม่ ให้ลบไฟล์เดิมออกจาก server และลบข้อมูลใน FileActivity
-    let images = [];
-    let pdfs = [];
-    if (req.files && (req.files.images || req.files.pdf)) {
-      // ดึงไฟล์เดิมจาก DB
-      const oldFiles = await prisma.fileActivity.findMany({ where: { activityId: id } });
-      for (const file of oldFiles) {
-        const filePath = path.join(__dirname, '../../uploads/fileActivities', file.filepath);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      }
+    const existingActivity = await prisma.activity.findUnique({
+      where: { id },
+    });
 
-      // ลบข้อมูลใน FileActivity
-      await prisma.fileActivity.deleteMany({ where: { activityId: id } });
+    if (!existingActivity) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลกิจกรรม" });
+    }
 
-      // เตรียมไฟล์ใหม่
-      if (req.files.images) {
-        images = req.files.images.slice(0, 5).map(f => f.filename);
-      }
-      if (req.files.pdf) {
-        pdfs = req.files.pdf.slice(0, 3).map(f => f.filename);
+    // ถ้ามีการเปลี่ยนผู้รับผิดชอบ ให้ตรวจสอบว่าเป็นพนักงาน
+    if (responsibleId && responsibleId !== existingActivity.responsibleId) {
+      const responsible = await prisma.user.findUnique({
+        where: { id: responsibleId },
+      });
+
+      if (
+        !responsible ||
+        (responsible.userType !== "admin" && responsible.userType !== "teacher")
+      ) {
+        return res
+          .status(400)
+          .json({ error: "ผู้รับผิดชอบต้องเป็นพนักงาน (admin หรือ teacher)" });
       }
     }
-    console.log(updateData);
+
+    const updateData = {
+      name,
+      description,
+      address,
+      departmentId,
+      responsibleId,
+      peopleCount,
+      maxPeopleCount,
+      hour,
+      status,
+    };
+
+    if (date) {
+      updateData.date = new Date(date);
+    }
+
     const updatedActivity = await prisma.activity.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        department: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+      },
     });
 
-    // เพิ่มไฟล์ใหม่ใน FileActivity
-    const fileRecords = [];
-    for (const img of images) {
-      fileRecords.push(prisma.fileActivity.create({
-        data: {
-          activityId: id,
-          filepath: img
-        }
-      }));
-    }
-    for (const pdf of pdfs) {
-      fileRecords.push(prisma.fileActivity.create({
-        data: {
-          activityId: id,
-          filepath: pdf
-        }
-      }));
-    }
-    if (fileRecords.length > 0) {
-      await Promise.all(fileRecords);
-    }
-
-    // Log action
-    await prisma.log.create({
-      data: {
-        action: 'update_activity',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Updated activity '${id}'${Object.keys(updateData).length ? `, fields: ${Object.keys(updateData).join(', ')}` : ''}`
-      }
-    });
-    res.status(200).json(updatedActivity);
+    res.json(updatedActivity);
   } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: `Activity with ID '${req.params.id}' not found to update.` });
-    }
-    if (error.code === 'P2003') {
-      const fieldName = error.meta?.field_name || '';
-      if (fieldName.includes('departmentId')) {
-        return res.status(404).json({ message: `Cannot update: Department with ID '${req.body.departmentId}' not found.` });
-      }
-      if (fieldName.includes('employeeId')) {
-        return res.status(404).json({ message: `Cannot update: Employee with ID '${req.body.employeeId}' not found.` });
-      }
-    }
-    console.error(`Error updating activity with ID ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-
-// DELETE /api/activities/:id
+// ลบกิจกรรม
 export const deleteActivity = async (req, res) => {
   try {
     const { id } = req.params;
-    const activityToDelete = await prisma.activity.findUnique({ where: { id } });
 
-    if (!activityToDelete) {
-      return res.status(404).json({ message: `Activity with ID '${id}' not found.` });
-    }
-
-    // ลบ attendances ที่เชื่อมกับ activity
-    await prisma.attendance.deleteMany({ where: { activityId: id } });
-
-    // ลบไฟล์ในเครื่องและข้อมูลใน fileActivity
-    const files = await prisma.fileActivity.findMany({ where: { activityId: id } });
-    for (const file of files) {
-      const filePath = path.join(__dirname, '../../uploads/fileActivities', file.filepath);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-    await prisma.fileActivity.deleteMany({ where: { activityId: id } });
-
-    // ลบ activity จริง
-    await prisma.activity.delete({ where: { id } });
-    // Log action
-    await prisma.log.create({
-      data: {
-        action: 'delete_activity',
-        fullname: req.user?.fullname || 'unknown',
-        role: req.user?.role || 'unknown',
-        description: `Deleted activity '${activityToDelete?.name}' (ID: ${id})`
-      }
+    const existingActivity = await prisma.activity.findUnique({
+      where: { id },
+      include: {
+        attendances: true,
+        fileActivities: true,
+      },
     });
-    res.status(200).json({ message: `Successfully deleted activity '${activityToDelete.name}' (ID: ${id}).` });
-  } catch (error) {
-    if (error.code === 'P2003') {
-      return res.status(409).json({ message: 'Cannot delete activity. It has existing attendance records.' });
+
+    if (!existingActivity) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลกิจกรรม" });
     }
-    console.error(`Error deleting activity with ID ${id}:`, error);
-    res.status(500).json({ message: 'Internal server error' });
+
+    await prisma.activity.delete({
+      where: { id },
+    });
+
+    res.json({ message: "ลบกิจกรรมเรียบร้อยแล้ว" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ดึงข้อมูลกิจกรรมที่ผู้ใช้รับผิดชอบ
+export const getActivitiesByResponsible = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const activities = await prisma.activity.findMany({
+      where: {
+        responsibleId: userId,
+      },
+      include: {
+        department: true,
+        attendances: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                studentId: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        fileActivities: true,
+      },
+      orderBy: {
+        date: "desc",
+      },
+    });
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
