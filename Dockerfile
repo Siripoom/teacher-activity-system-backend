@@ -1,5 +1,5 @@
 # Multi-stage build for better optimization
-FROM node:18-alpine AS base
+FROM node:18-alpine3.20 AS base
 
 # Install system dependencies including OpenSSL for Prisma
 RUN apk add --no-cache \
