@@ -14,6 +14,8 @@ import departmentRoutes from "./routes/departmentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import logRoutes from "./routes/logRoutes.js";
 import fileRoutes from "./routes/fileRoutes.js";
+import majorRoutes from "./routes/majorRoutes.js";
+import typeActivityRoutes from "./routes/typeActivityRoutes.js";
 
 dotenv.config();
 
@@ -30,6 +32,8 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/logs", logRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/majors", majorRoutes);
+app.use("/api/type-activities", typeActivityRoutes);
 
 const upload = multer({ dest: "uploads/" });
 

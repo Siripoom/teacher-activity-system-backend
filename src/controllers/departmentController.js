@@ -68,13 +68,13 @@ export const getDepartmentById = async (req, res) => {
 // สร้างแผนกใหม่
 export const createDepartment = async (req, res) => {
   try {
-    const { name, major } = req.body;
+    const { name } = req.body;
 
-    if (!name || !major) {
-      return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    if (!name) {
+      return res.status(400).json({ error: "กรุณากรอกชื่อแผนก" });
     }
 
-    // ตรวจสอบชื่อแผนกซ้ำ
+    // ตรวจสอบชื่อแผนกซ้ำ (ชื่อมี unique constraint ใน schema)
     const existingName = await prisma.department.findUnique({
       where: { name },
     });
@@ -83,20 +83,8 @@ export const createDepartment = async (req, res) => {
       return res.status(400).json({ error: "ชื่อแผนกนี้มีอยู่แล้ว" });
     }
 
-    // ตรวจสอบชื่อสาขาซ้ำ
-    const existingMajor = await prisma.department.findUnique({
-      where: { major },
-    });
-
-    if (existingMajor) {
-      return res.status(400).json({ error: "ชื่อสาขานี้มีอยู่แล้ว" });
-    }
-
     const newDepartment = await prisma.department.create({
-      data: {
-        name,
-        major,
-      },
+      data: { name },
     });
 
     res.status(201).json(newDepartment);
@@ -109,7 +97,7 @@ export const createDepartment = async (req, res) => {
 export const updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, major } = req.body;
+    const { name } = req.body;
 
     const existingDepartment = await prisma.department.findUnique({
       where: { id },
@@ -119,34 +107,23 @@ export const updateDepartment = async (req, res) => {
       return res.status(404).json({ error: "ไม่พบข้อมูลแผนก" });
     }
 
-    // ตรวจสอบชื่อแผนกซ้ำ
+    // ตรวจสอบชื่อแผนกซ้ำ (หากมีการเปลี่ยนชื่อ)
     if (name && name !== existingDepartment.name) {
       const nameExists = await prisma.department.findUnique({
         where: { name },
       });
 
-      if (nameExists) {
+      if (nameExists && nameExists.id !== id) {
         return res.status(400).json({ error: "ชื่อแผนกนี้มีอยู่แล้ว" });
       }
     }
 
-    // ตรวจสอบชื่อสาขาซ้ำ
-    if (major && major !== existingDepartment.major) {
-      const majorExists = await prisma.department.findUnique({
-        where: { major },
-      });
-
-      if (majorExists) {
-        return res.status(400).json({ error: "ชื่อสาขานี้มีอยู่แล้ว" });
-      }
-    }
+    const data = {};
+    if (name) data.name = name;
 
     const updatedDepartment = await prisma.department.update({
       where: { id },
-      data: {
-        name,
-        major,
-      },
+      data,
     });
 
     res.json(updatedDepartment);
@@ -242,7 +219,6 @@ export const getDepartmentStats = async (req, res) => {
       department: {
         id: department.id,
         name: department.name,
-        major: department.major,
       },
       stats,
     });

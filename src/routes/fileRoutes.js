@@ -8,6 +8,7 @@ import {
   deleteFileActivity,
   downloadFileActivity,
   getFilesByActivity,
+  uploadStudentsCsv,
   uploadMultipleFileActivities,
 } from "../controllers/fileController.js";
 import { authenticate } from "../middleware/middleware.js";
@@ -27,7 +28,7 @@ const storage = multer.diskStorage({
 
 // กรองประเภทไฟล์
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx|zip|rar/;
+  const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx|zip|rar|csv/;
   const extname = allowedTypes.test(
     path.extname(file.originalname).toLowerCase()
   );
@@ -56,6 +57,7 @@ const upload = multer({
 router.get("/", authenticate, getAllFileActivities);
 router.get("/:id", authenticate, getFileActivityById);
 router.post("/upload", authenticate, upload.single("file"), uploadFileActivity);
+router.post("/upload-students-csv", authenticate, upload.single("file"), uploadStudentsCsv);
 router.post(
   "/upload-multiple",
   authenticate,

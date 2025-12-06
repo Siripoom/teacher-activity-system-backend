@@ -10,13 +10,26 @@ datasource db {
 model Department {
     id         String     @id @default(uuid()) @db.Uuid // รหัสแผนก (UUID)
     name       String     @unique // ชื่อแผนก
-    major      String     @unique @map("short_name") // ชื่อสาขา
     createdAt  DateTime   @default(now()) @map("created_at") // วันที่สร้าง
     updatedAt  DateTime   @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
     users      User[] // รายชื่อผู้ใช้ในแผนก (พนักงาน/นักศึกษา)
     activities Activity[] // รายการกิจกรรมของแผนก
-
+    majors     Major[] // รายชื่อสาขาในแผนก
     @@map("departments")
+}
+
+model Major{
+    id           String     @id @default(uuid()) @db.Uuid // รหัสสาขา (UUID)
+    name         String     @unique // ชื่อสาขา
+    departmentId String     @map("department_id") @db.Uuid // รหัสแผนกที่สาขานี้สังกัด
+    department   Department @relation(fields: [departmentId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ข้อมูลแผนกที่สาขานี้สังกัด
+    createdAt    DateTime   @default(now()) @map("created_at") // วันที่สร้าง
+    updatedAt    DateTime   @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
+    users        User[] // รายชื่อผู้ใช้ในสาขา (นักศึกษา)
+    activities   Activity[] // รายการกิจกรรมของสาขา
+    @@index([departmentId])
+
+    @@map("majors")
 }
 
 model User {
@@ -26,18 +39,19 @@ model User {
     email        String       @unique // อีเมล
     password     String? // รหัสผ่าน (สำหรับพนักงาน)
     phone        String? // เบอร์โทรศัพท์
-    departmentId String?      @map("department_id") @db.Uuid // รหัสแผนกที่สังกัด
-    department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ข้อมูลแผนกที่สังกัด
+    majorId      String?      @map("major_id") @db.Uuid // รหัสสาขาที่สังกัด
+    major        Major?       @relation(fields: [majorId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ข้อมูลสาขาที่สังกัด
     userType     UserType     @map("user_type") // ประเภทผู้ใช้ (admin/teacher/student)
     birthday     String? // วันเกิด (พศ) - สำหรับนักศึกษา
+    level        String? // ระดับการศึกษา - สำหรับนักศึกษา
     profilePic   String?      @map("profile_pic") // รูปโปรไฟล์
     status       UserStatus   @default(active) // สถานะผู้ใช้
     createdAt    DateTime     @default(now()) @map("created_at") // วันที่สร้าง
     updatedAt    DateTime     @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
-    activities   Activity[] // กิจกรรมที่รับผิดชอบ (สำหรับพนักงาน)
+    activities   Activity[]   // กิจกรรมที่รับผิดชอบ (สำหรับพนักงาน)
     attendances  Attendance[] // ข้อมูลการเข้าร่วมกิจกรรม (สำหรับนักศึกษา)
 
-    @@index([departmentId])
+    @@index([majorId])
     @@index([userType])
     @@index([status])
     @@index([email])
@@ -45,9 +59,34 @@ model User {
     @@map("users")
 }
 
+model TypeActivity {
+    id         String   @id @default(uuid()) @db.Uuid // รหัสประเภทกิจกรรม (UUID)
+    name       String   @unique // ชื่อประเภทกิจกรรม
+    createdAt  DateTime @default(now()) @map("created_at") // วันที่สร้าง
+    updatedAt  DateTime @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
+    activities Activity[] // รายการกิจกรรมที่ใช้ประเภทนี้
+
+    @@map("type_activities")
+}
+
+model MajorJoinActivity {
+    id         String   @id @default(uuid()) @db.Uuid // รหัสการเชื่อมโยงสาขากับกิจกรรม (UUID)
+    majorId    String   @map("major_id") @db.Uuid // รหัสสาขา
+    activityId String   @map("activity_id") @db.Uuid // รหัสกิจกรรม
+    major      Major    @relation(fields: [majorId], references: [id], onDelete: Cascade, onUpdate: Cascade) // ข้อมูลสาขา
+    activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade, onUpdate: Cascade) // ข้อมูลกิจกรรม
+
+    @@unique([majorId, activityId])
+    @@index([majorId])
+    @@index([activityId])
+    @@map("major_join_activities")
+}
+
 model Activity {
     id             String         @id @default(uuid()) @db.Uuid // รหัสกิจกรรม (UUID)
     name           String // ชื่อกิจกรรม
+    typeActivityId String         @map("type_activity_id") @db.Uuid // รหัสประเภทกิจกรรม
+    typeActivity   TypeActivity   @relation(fields: [typeActivityId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ข้อมูลประเภทกิจกรรม
     description    String?        @db.Text // รายละเอียดกิจกรรม
     date           DateTime // วันที่จัดกิจกรรม
     address        String // สถานที่จัดกิจกรรม
@@ -63,11 +102,14 @@ model Activity {
     responsible    User           @relation(fields: [responsibleId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ข้อมูลผู้รับผิดชอบ
     attendances    Attendance[] // ข้อมูลการเข้าร่วมกิจกรรม
     fileActivities FileActivity[] // ไฟล์ที่เกี่ยวข้องกับกิจกรรม
+    majorJoins     MajorJoinActivity[] // สาขาที่เข้าร่วมกิจกรรม
+
 
     @@index([departmentId])
     @@index([responsibleId])
     @@index([status])
     @@index([date])
+    @@index([typeActivityId])
     @@map("activities")
 }
 
