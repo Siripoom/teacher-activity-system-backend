@@ -96,6 +96,10 @@ model Activity {
     maxPeopleCount Int?           @map("max_people_count") // จำนวนผู้เข้าร่วมสูงสุด
     hour           Int? // จำนวนชั่วโมงกิจกรรม
     status         ActivityStatus @default(planned) // สถานะกิจกรรม
+    startDate      DateTime?      @map("start_date") // วันที่เริ่มกิจกรรม
+    endDate        DateTime?      @map("end_date") // วันที่สิ้นสุดกิจกรรม
+    year           Int?           // ปีการศึกษา
+    level          String?        // ชั้นปีการศึกษา
     createdAt      DateTime       @default(now()) @map("created_at") // วันที่สร้าง
     updatedAt      DateTime       @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
     department     Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ข้อมูลแผนก

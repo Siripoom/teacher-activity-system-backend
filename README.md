@@ -182,11 +182,29 @@ Base URL: `http://<HOST>:<PORT>/api`
 
 - GET `/activities`
   - Auth: No
-  - Query params (optional): `status`, `departmentId`, `responsibleId`
+  - Query params (optional): `status`, `departmentId`, `responsibleId`, `typeActivityId`
+
+- GET `/activities/report`
+  - Auth: No
+  - Query params (optional): `departmentId`, `majorId`, `status`, `typeActivityId`, `year`, `startDate`, `endDate`
+  - Returns summary: totals, counts by status/department/major, and activity list (with department, typeActivity, majors). Filters `startDate`/`endDate` apply to the activity `date` field.
+  - Example response:
+    ```json
+    {
+      "filters": { "departmentId": null, "majorId": null, "status": null, "typeActivityId": null, "year": 2567, "startDate": "2024-01-01T00:00:00.000Z", "endDate": "2024-12-31T23:59:59.000Z" },
+      "totalActivities": 12,
+      "summary": {
+        "byStatus": [{ "status": "planned", "count": 3 }, { "status": "completed", "count": 9 }],
+        "byDepartment": [{ "departmentId": "uuid-dept-1", "departmentName": "วิทยาการคอมพิวเตอร์", "count": 7 }],
+        "byMajor": [{ "majorId": "uuid-major-1", "majorName": "IT", "count": 5 }]
+      },
+      "activities": [/* array of activities with department, typeActivity, majorJoins, responsible */]
+    }
+    ```
 
 - GET `/activities/:id`
   - Auth: No
-  - Returns activity with relations (department, responsible, attendances, fileActivities, majorJoins)
+  - Returns activity with relations (department, responsible, typeActivity, attendances, fileActivities, majorJoins)
 
 - POST `/activities`
   - Auth: No
@@ -199,9 +217,15 @@ Base URL: `http://<HOST>:<PORT>/api`
       "address": "ห้องประชุม",
       "departmentId": "<department-uuid>",
       "responsibleId": "<user-uuid>",
+      "typeActivityId": "<type-activity-uuid>",
       "peopleCount": 0,
       "maxPeopleCount": 100,
       "hour": 3,
+      "startDate": "2025-12-10T09:00:00.000Z",
+      "endDate": "2025-12-10T16:00:00.000Z",
+      "year": 2568,
+      "level": "ปี 1",
+      "status": "planned|inprogress|completed|cancelled",
       "majorIds": ["<major-uuid>", "<major-uuid>"]  // optional: majors that can join
     }
     ```
@@ -215,7 +239,7 @@ Base URL: `http://<HOST>:<PORT>/api`
 
 - GET `/activities/responsible/:userId`
   - Auth: No
-  - Get activities where `responsibleId` == userId
+  - Get activities where `responsibleId` == userId (includes department, attendances, fileActivities, typeActivity, majorJoins)
 
 ----
 
@@ -302,6 +326,7 @@ Notes & Tips
 - All JSON request bodies should set `Content-Type: application/json`.
 - File uploads must use `multipart/form-data` and the field names above.
 - Major lookups: when creating/updating activities you can provide `majorIds` (UUIDs). For CSV import, `major` must be supplied as the major *name*.
+- Activities: require `typeActivityId`; optional `startDate`, `endDate`, `year`, `level`; valid statuses are `planned|inprogress|completed|cancelled` and `endDate` should not be earlier than `startDate`.
 - Passwords for CSV-imported students are produced by hashing the raw `birthday` string stored in the CSV (use `bcrypt` on the server).
 
 If you want, I can:
@@ -311,4 +336,4 @@ If you want, I can:
 
 ----
 
-Generated: 7 ธันวาคม 2568
+Updated: synced with latest activity schema (typeActivity, start/end date, year, level)

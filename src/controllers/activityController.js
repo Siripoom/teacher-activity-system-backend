@@ -1,5 +1,159 @@
 import prisma from "../config/db.js";
 
+const VALID_ACTIVITY_STATUSES = ["planned", "inprogress", "completed", "cancelled"];
+const buildDate = (value, fieldName, res) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    res.status(400).json({ error: `รูปแบบ ${fieldName} ไม่ถูกต้อง` });
+    return null;
+  }
+  return parsed;
+};
+
+/**
+ * สรุปรายงานกิจกรรม
+ * Query params (optional):
+ * - `departmentId` (uuid)
+ * - `majorId` (uuid) — ตรวจ majorJoin
+ * - `status` (planned|inprogress|completed|cancelled)
+ * - `typeActivityId` (uuid)
+ * - `year` (number)
+ * - `startDate` (ISO string) — filter by `date >= startDate`
+ * - `endDate` (ISO string) — filter by `date <= endDate`
+ * Response: totals + summary by status/department/major + activities list (with relations)
+ */
+export const getActivityReport = async (req, res) => {
+  try {
+    const { departmentId, majorId, status, typeActivityId, year, startDate, endDate } = req.query;
+
+    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
+      return res.status(400).json({ error: "สถานะกิจกรรมไม่ถูกต้อง" });
+    }
+
+    let parsedYear;
+    if (year !== undefined) {
+      parsedYear = Number(year);
+      if (Number.isNaN(parsedYear)) {
+        return res.status(400).json({ error: "year ต้องเป็นตัวเลข" });
+      }
+    }
+
+    const parsedStart = buildDate(startDate, "startDate", res);
+    if (parsedStart === null) return;
+    const parsedEnd = buildDate(endDate, "endDate", res);
+    if (parsedEnd === null) return;
+    if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
+      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+    }
+
+    const where = {};
+    if (departmentId) where.departmentId = departmentId;
+    if (status) where.status = status;
+    if (typeActivityId) where.typeActivityId = typeActivityId;
+    if (parsedYear !== undefined) where.year = parsedYear;
+    if (parsedStart || parsedEnd) {
+      where.date = {};
+      if (parsedStart) where.date.gte = parsedStart;
+      if (parsedEnd) where.date.lte = parsedEnd;
+    }
+    if (majorId) {
+      where.majorJoins = { some: { majorId } };
+    }
+
+    const activities = await prisma.activity.findMany({
+      where,
+      include: {
+        department: true,
+        typeActivity: true,
+        majorJoins: {
+          include: {
+            major: true,
+          },
+        },
+        fileActivities: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+        attendances: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                studentId: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        
+      },
+      orderBy: { date: "desc" },
+    });
+
+    const totalActivities = activities.length;
+    const statusCount = {};
+    const departmentCount = {};
+    const majorCount = {};
+
+    activities.forEach((act) => {
+      statusCount[act.status] = (statusCount[act.status] || 0) + 1;
+      if (act.department) {
+        const deptKey = `${act.departmentId}|${act.department.name}`;
+        departmentCount[deptKey] = (departmentCount[deptKey] || 0) + 1;
+      }
+      act.majorJoins.forEach((mj) => {
+        if (mj.major) {
+          const majorKey = `${mj.majorId}|${mj.major.name}`;
+          majorCount[majorKey] = (majorCount[majorKey] || 0) + 1;
+        }
+      });
+    });
+
+    const byStatus = Object.entries(statusCount).map(([key, value]) => ({
+      status: key,
+      count: value,
+    }));
+
+    const byDepartment = Object.entries(departmentCount).map(([compound, count]) => {
+      const [deptId, name] = compound.split("|");
+      return { departmentId: deptId, departmentName: name, count };
+    });
+
+    const byMajor = Object.entries(majorCount).map(([compound, count]) => {
+      const [majId, name] = compound.split("|");
+      return { majorId: majId, majorName: name, count };
+    });
+
+    return res.json({
+      filters: {
+        departmentId: departmentId || null,
+        majorId: majorId || null,
+        status: status || null,
+        typeActivityId: typeActivityId || null,
+        year: parsedYear ?? null,
+        startDate: parsedStart || null,
+        endDate: parsedEnd || null,
+      },
+      totalActivities,
+      summary: {
+        byStatus,
+        byDepartment,
+        byMajor,
+      },
+      activities,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 /**
  * ดึงข้อมูลกิจกรรมทั้งหมด
  * Query params (optional):
@@ -10,17 +164,19 @@ import prisma from "../config/db.js";
  */
 export const getAllActivities = async (req, res) => {
   try {
-    const { status, departmentId, responsibleId } = req.query;
+    const { status, departmentId, responsibleId, typeActivityId } = req.query;
 
     const where = {};
     if (status) where.status = status;
     if (departmentId) where.departmentId = departmentId;
     if (responsibleId) where.responsibleId = responsibleId;
+    if (typeActivityId) where.typeActivityId = typeActivityId;
 
     const activities = await prisma.activity.findMany({
       where,
       include: {
         department: true,
+        typeActivity: true,
         responsible: {
           select: {
             id: true,
@@ -73,6 +229,7 @@ export const getActivityById = async (req, res) => {
       where: { id },
       include: {
         department: true,
+        typeActivity: true,
         responsible: {
           select: {
             id: true,
@@ -123,10 +280,16 @@ export const getActivityById = async (req, res) => {
  * - `address` (string, required)
  * - `departmentId` (string, uuid, required)
  * - `responsibleId` (string, uuid, required) — ผู้รับผิดชอบ ต้องเป็น userType: admin หรือ teacher
+ * - `typeActivityId` (string, uuid, required) — ประเภทกิจกรรม ต้องมีอยู่จริง
  * - `description` (string, optional)
  * - `peopleCount` (number, optional)
  * - `maxPeopleCount` (number, optional)
  * - `hour` (number, optional)
+ * - `startDate` (ISO string, optional)
+ * - `endDate` (ISO string, optional)
+ * - `year` (number, optional)
+ * - `level` (string, optional)
+ * - `status` (string enum, optional) — หากไม่ส่งใช้ค่า default: planned
  * - `majorIds` (array of string uuids, optional) — ถ้าส่งมา จะสร้างความสัมพันธ์ใน `majorJoinActivity`. ทุก majorId ต้องมีอยู่จริงและสังกัด `departmentId` ที่ส่งเข้ามา
  * Response: สร้าง activity แล้วคืนข้อมูล activity (รวม department, responsible)
  */
@@ -139,14 +302,65 @@ export const createActivity = async (req, res) => {
       address,
       departmentId,
       responsibleId,
+      typeActivityId,
       peopleCount,
       maxPeopleCount,
       hour,
       majorIds,
+      startDate,
+      endDate,
+      year,
+      level,
+      status,
     } = req.body;
 
-    if (!name || !date || !address || !departmentId || !responsibleId) {
+    if (!name || !date || !address || !departmentId || !responsibleId || !typeActivityId) {
       return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    }
+
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ error: "รูปแบบวันที่ไม่ถูกต้อง" });
+    }
+
+    let parsedStartDate;
+    if (startDate) {
+      parsedStartDate = new Date(startDate);
+      if (Number.isNaN(parsedStartDate.getTime())) {
+        return res.status(400).json({ error: "รูปแบบ startDate ไม่ถูกต้อง" });
+      }
+    }
+
+    let parsedEndDate;
+    if (endDate) {
+      parsedEndDate = new Date(endDate);
+      if (Number.isNaN(parsedEndDate.getTime())) {
+        return res.status(400).json({ error: "รูปแบบ endDate ไม่ถูกต้อง" });
+      }
+    }
+
+    if (parsedStartDate && parsedEndDate && parsedEndDate < parsedStartDate) {
+      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+    }
+
+    let parsedYear;
+    if (year !== undefined && year !== null) {
+      parsedYear = Number(year);
+      if (Number.isNaN(parsedYear)) {
+        return res.status(400).json({ error: "year ต้องเป็นตัวเลข" });
+      }
+    }
+
+    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
+      return res.status(400).json({ error: "สถานะกิจกรรมไม่ถูกต้อง" });
+    }
+
+    const typeActivity = await prisma.typeActivity.findUnique({
+      where: { id: typeActivityId },
+    });
+
+    if (!typeActivity) {
+      return res.status(400).json({ error: "ไม่พบประเภทกิจกรรม" });
     }
 
     // ตรวจสอบว่าผู้รับผิดชอบเป็นพนักงาน (admin หรือ teacher)
@@ -186,16 +400,23 @@ export const createActivity = async (req, res) => {
       data: {
         name,
         description,
-        date: new Date(date),
+        date: parsedDate,
         address,
         departmentId,
         responsibleId,
+        typeActivityId,
         peopleCount,
         maxPeopleCount,
         hour,
+        status,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        year: parsedYear,
+        level,
       },
       include: {
         department: true,
+        typeActivity: true,
         responsible: {
           select: {
             id: true,
@@ -238,6 +459,11 @@ export const createActivity = async (req, res) => {
  * - `maxPeopleCount` (number)
  * - `hour` (number)
  * - `status` (string enum)
+ * - `typeActivityId` (string, uuid)
+ * - `startDate` (ISO string | null)
+ * - `endDate` (ISO string | null)
+ * - `year` (number | null)
+ * - `level` (string | null)
  * - `majorIds` (array of string uuids) — ถาส่งมา จะลบความสัมพันธ์ `majorJoinActivity` เดิมทั้งหมดและแทนที่ด้วยรายการใหม่; ทุก majorId ต้องมีอยู่จริงและสังกัด departmentId (ปัจจุบันหรือที่อัปเดต)
  * Response: activity ที่อัปเดต (รวม department, responsible)
  */
@@ -251,11 +477,16 @@ export const updateActivity = async (req, res) => {
       address,
       departmentId,
       responsibleId,
+      typeActivityId,
       peopleCount,
       maxPeopleCount,
       hour,
       status,
       majorIds,
+      startDate,
+      endDate,
+      year,
+      level,
     } = req.body;
 
     const existingActivity = await prisma.activity.findUnique({
@@ -282,6 +513,76 @@ export const updateActivity = async (req, res) => {
       }
     }
 
+    if (
+      typeActivityId &&
+      typeActivityId !== existingActivity.typeActivityId
+    ) {
+      const typeActivity = await prisma.typeActivity.findUnique({
+        where: { id: typeActivityId },
+      });
+
+      if (!typeActivity) {
+        return res.status(400).json({ error: "ไม่พบประเภทกิจกรรม" });
+      }
+    }
+
+    if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
+      return res.status(400).json({ error: "สถานะกิจกรรมไม่ถูกต้อง" });
+    }
+
+    let parsedDate;
+    if (date !== undefined) {
+      parsedDate = new Date(date);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ error: "รูปแบบวันที่ไม่ถูกต้อง" });
+      }
+    }
+
+    const hasStartDate = startDate !== undefined;
+    let parsedStartDate;
+    if (hasStartDate) {
+      if (startDate === null || startDate === "") {
+        parsedStartDate = null;
+      } else {
+        parsedStartDate = new Date(startDate);
+        if (Number.isNaN(parsedStartDate.getTime())) {
+          return res.status(400).json({ error: "รูปแบบ startDate ไม่ถูกต้อง" });
+        }
+      }
+    }
+
+    const hasEndDate = endDate !== undefined;
+    let parsedEndDate;
+    if (hasEndDate) {
+      if (endDate === null || endDate === "") {
+        parsedEndDate = null;
+      } else {
+        parsedEndDate = new Date(endDate);
+        if (Number.isNaN(parsedEndDate.getTime())) {
+          return res.status(400).json({ error: "รูปแบบ endDate ไม่ถูกต้อง" });
+        }
+      }
+    }
+
+    const startToValidate = hasStartDate ? parsedStartDate : existingActivity.startDate;
+    const endToValidate = hasEndDate ? parsedEndDate : existingActivity.endDate;
+    if (startToValidate && endToValidate && endToValidate < startToValidate) {
+      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+    }
+
+    let parsedYear;
+    const hasYear = year !== undefined;
+    if (hasYear) {
+      if (year === null || year === "") {
+        parsedYear = null;
+      } else {
+        parsedYear = Number(year);
+        if (Number.isNaN(parsedYear)) {
+          return res.status(400).json({ error: "year ต้องเป็นตัวเลข" });
+        }
+      }
+    }
+
     // หากส่ง majorIds มา ให้ตรวจสอบความถูกต้องของ majorIds
     let majorsToJoin = [];
     if (majorIds && Array.isArray(majorIds)) {
@@ -301,27 +602,29 @@ export const updateActivity = async (req, res) => {
       }
     }
 
-    const updateData = {
-      name,
-      description,
-      address,
-      departmentId,
-      responsibleId,
-      peopleCount,
-      maxPeopleCount,
-      hour,
-      status,
-    };
-
-    if (date) {
-      updateData.date = new Date(date);
-    }
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (address !== undefined) updateData.address = address;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (responsibleId !== undefined) updateData.responsibleId = responsibleId;
+    if (typeActivityId !== undefined) updateData.typeActivityId = typeActivityId;
+    if (peopleCount !== undefined) updateData.peopleCount = peopleCount;
+    if (maxPeopleCount !== undefined) updateData.maxPeopleCount = maxPeopleCount;
+    if (hour !== undefined) updateData.hour = hour;
+    if (status !== undefined) updateData.status = status;
+    if (date !== undefined) updateData.date = parsedDate;
+    if (hasStartDate) updateData.startDate = parsedStartDate;
+    if (hasEndDate) updateData.endDate = parsedEndDate;
+    if (hasYear) updateData.year = parsedYear;
+    if (level !== undefined) updateData.level = level === null ? null : level;
 
     const updatedActivity = await prisma.activity.update({
       where: { id },
       data: updateData,
       include: {
         department: true,
+        typeActivity: true,
         responsible: {
           select: {
             id: true,
@@ -414,6 +717,7 @@ export const getActivitiesByResponsible = async (req, res) => {
           },
         },
         fileActivities: true,
+        typeActivity: true,
         majorJoins: {
           include: {
             major: true,

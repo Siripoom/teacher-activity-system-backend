@@ -6,11 +6,13 @@ import {
   updateActivity,
   deleteActivity,
   getActivitiesByResponsible,
+  getActivityReport,
 } from "../controllers/activityController.js";
 
 const router = express.Router();
 
 router.get("/", getAllActivities);
+router.get("/report", getActivityReport);
 router.get("/:id", getActivityById);
 router.post("/", createActivity);
 router.put("/:id", updateActivity);
