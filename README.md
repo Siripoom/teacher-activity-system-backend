@@ -202,6 +202,11 @@ Base URL: `http://<HOST>:<PORT>/api`
     }
     ```
 
+- GET `/activities/filter`
+  - Auth: No
+  - Query: one of `departmentId` **or** `year` **or** `typeActivityId` (must send exactly one)
+  - Returns activities filtered by the given field (includes department, typeActivity, responsible, majors, attendances, files), `totalHour` (sum of `hour` of returned activities), and `countActivity`
+
 - GET `/activities/:id`
   - Auth: No
   - Returns activity with relations (department, responsible, typeActivity, attendances, fileActivities, majorJoins)

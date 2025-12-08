@@ -11,6 +11,8 @@ const buildDate = (value, fieldName, res) => {
   return parsed;
 };
 
+
+
 /**
  * สรุปรายงานกิจกรรม
  * Query params (optional):
@@ -149,6 +151,86 @@ export const getActivityReport = async (req, res) => {
       },
       activities,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * ดึงกิจกรรมตาม filter อย่างใดอย่างหนึ่ง (departmentId | year | typeActivityId)
+ * Query params: departmentId OR year OR typeActivityId (ต้องส่งมาอย่างใดอย่างหนึ่งเท่านั้น)
+ */
+export const getActivitiesBySingleFilter = async (req, res) => {
+  try {
+    const { departmentId, year, typeActivityId } = req.query;
+    const provided = [
+      departmentId ? "departmentId" : null,
+      year ? "year" : null,
+      typeActivityId ? "typeActivityId" : null,
+    ].filter(Boolean);
+
+    if (provided.length === 0) {
+      return res.status(400).json({ error: "กรุณาระบุ departmentId หรือ year หรือ typeActivityId อย่างใดอย่างหนึ่ง" });
+    }
+
+    if (provided.length > 1) {
+      return res.status(400).json({ error: "สามารถระบุได้ครั้งละ 1 ตัวเลือก (departmentId หรือ year หรือ typeActivityId)" });
+    }
+
+    const where = {};
+    if (departmentId) {
+      where.departmentId = departmentId;
+    }
+
+    if (typeActivityId) {
+      where.typeActivityId = typeActivityId;
+    }
+
+    if (year) {
+      const parsedYear = Number(year);
+      if (Number.isNaN(parsedYear)) {
+        return res.status(400).json({ error: "year ต้องเป็นตัวเลข" });
+      }
+      where.year = parsedYear;
+    }
+
+    const activities = await prisma.activity.findMany({
+      where,
+      include: {
+        department: true,
+        typeActivity: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+        majorJoins: {
+          include: { major: true },
+        },
+        attendances: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                studentId: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+        fileActivities: true,
+      },
+      orderBy: { date: "desc" },
+    });
+
+    const totalHour = activities.reduce((sum, act) => sum + (act.hour || 0), 0);
+    const countActivity = activities.length;
+
+    return res.json({ filter: provided[0], totalHour, countActivity, activities });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

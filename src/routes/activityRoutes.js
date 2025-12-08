@@ -7,12 +7,14 @@ import {
   deleteActivity,
   getActivitiesByResponsible,
   getActivityReport,
+  getActivitiesBySingleFilter,
 } from "../controllers/activityController.js";
 
 const router = express.Router();
 
 router.get("/", getAllActivities);
 router.get("/report", getActivityReport);
+router.get("/filter", getActivitiesBySingleFilter);
 router.get("/:id", getActivityById);
 router.post("/", createActivity);
 router.put("/:id", updateActivity);
