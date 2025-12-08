@@ -61,19 +61,22 @@ export const uploadStudentsCsv = async (req, res) => {
       .on('data', (data) => rows.push(data))
       .on('end', async () => {
         let created = 0;
-        const student = await prisma.student.findMany({where:{userType:'student',status:'active'}});
-        
-        student.forEach(async(element) => {
-          const currentYear = new Date().getFullYear();
-        const yearStr = studentId.substring(0, 2);
-        const entryYear = 2500 + parseInt(yearStr, 10);
-        const currentBuddhist = currentYear + 543;
-        let computed = entryYear - currentBuddhist + 1;
-        computed = parseInt(computed, 10);
-        let level = String(computed);
+        const student = await prisma.student.findMany({ where: { userType: 'student', status: 'active' } });
+
+        student.forEach(async (element) => {
+          const currentYear = new Date().getFullYear(); // ค.ศ.
+          const yearStr = element.studentId.substring(0, 2);
+          const entryYear = 2500 + parseInt(yearStr, 10); // พ.ศ. เช่น 2567
+          const currentBuddhist = parseInt(currentYear, 10) + 543; // แปลงเป็น พ.ศ.
+
+          // สูตรที่ผู้ใช้ระบุ: ปีที่เข้าศึกษา - (ปีปัจจุบัน + 543) + 1
+          let computed = currentBuddhist - entryYear + 1;
+          computed = parseInt(computed, 10);
+          // เก็บเป็นสตริงตาม schema (level เป็น String?)
+          let level = String(computed);
           await prisma.user.update({
-            where:{studentId:element.id},
-            data:{level:level}
+            where: { studentId: element.id },
+            data: { level: level }
           });
         });
 
@@ -121,17 +124,19 @@ export const uploadStudentsCsv = async (req, res) => {
             const passwordRaw = birthdayRaw;
             const passwordHash = await bcrypt.hash(passwordRaw, 10);
 
-            await prisma.user.create({ data: {
-              studentId,
-              fullname,
-              email,
-              password: passwordHash,
-              phone: phone || null,
-              majorId: majorId,
-              userType: 'student',
-              birthday: birthdayStored,
-              status: 'active'
-            }});
+            await prisma.user.create({
+              data: {
+                studentId,
+                fullname,
+                email,
+                password: passwordHash,
+                phone: phone || null,
+                majorId: majorId,
+                userType: 'student',
+                birthday: birthdayStored,
+                status: 'active'
+              }
+            });
 
             created++;
           } catch (err) {
@@ -139,8 +144,8 @@ export const uploadStudentsCsv = async (req, res) => {
           }
         }
 
-        try { await unlinkAsync(req.file.path); } catch (e) {}
-        try { if (req.user) await prisma.log.create({ data: { action: 'import_students', fullname: req.user.fullname || 'unknown', role: req.user.role || 'unknown', description: `Imported ${created} students, ${errors.length} errors` } }); } catch (e) {}
+        try { await unlinkAsync(req.file.path); } catch (e) { }
+        try { if (req.user) await prisma.log.create({ data: { action: 'import_students', fullname: req.user.fullname || 'unknown', role: req.user.role || 'unknown', description: `Imported ${created} students, ${errors.length} errors` } }); } catch (e) { }
 
         res.status(201).json({ message: 'Import finished', created, errors });
       })

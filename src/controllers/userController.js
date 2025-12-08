@@ -110,9 +110,10 @@ export const createUser = async (req, res) => {
         const currentYear = new Date().getFullYear(); // ค.ศ.
         const yearStr = studentId.substring(0, 2);
         const entryYear = 2500 + parseInt(yearStr, 10); // พ.ศ. เช่น 2567
-        const currentBuddhist = currentYear + 543; // แปลงเป็น พ.ศ.
+        const currentBuddhist = parseInt(currentYear ,10) + 543; // แปลงเป็น พ.ศ.
+
         // สูตรที่ผู้ใช้ระบุ: ปีที่เข้าศึกษา - (ปีปัจจุบัน + 543) + 1
-        let computed = entryYear - currentBuddhist + 1;
+        let computed = currentBuddhist - entryYear + 1;
         computed = parseInt(computed, 10);
         // เก็บเป็นสตริงตาม schema (level เป็น String?)
         level = String(computed);
