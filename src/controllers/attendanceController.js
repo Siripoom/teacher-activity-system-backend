@@ -1,5 +1,7 @@
 import prisma from "../config/db.js";
 
+const ACTIVE_STATUSES_FOR_COUNT = ["joined", "accepted", "completed"];
+
 // ดึงข้อมูลการเข้าร่วมกิจกรรมทั้งหมด
 export const getAllAttendances = async (req, res) => {
   try {
@@ -160,7 +162,7 @@ export const createAttendance = async (req, res) => {
       where: {
         activityId,
         status: {
-          in: ["joined", "accepted", "completed"],
+          in: ACTIVE_STATUSES_FOR_COUNT,
         },
       },
     });
@@ -220,7 +222,7 @@ export const updateAttendance = async (req, res) => {
       where: {
         activityId: existingAttendance.activityId,
         status: {
-          in: ["joined", "accepted", "completed"],
+          in: ACTIVE_STATUSES_FOR_COUNT,
         },
       },
     });
@@ -262,7 +264,7 @@ export const deleteAttendance = async (req, res) => {
       where: {
         activityId,
         status: {
-          in: ["joined", "accepted", "completed"],
+          in: ACTIVE_STATUSES_FOR_COUNT,
         },
       },
     });
@@ -275,6 +277,105 @@ export const deleteAttendance = async (req, res) => {
     });
 
     res.json({ message: "ลบการเข้าร่วมกิจกรรมเรียบร้อยแล้ว" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// เปลี่ยนสถานะการเข้าร่วมจาก Inprogress เป็น completed ตาม userId + activityId
+export const completeAttendanceIfInProgress = async (req, res) => {
+  try {
+    const { userId, activityId } = req.body;
+
+    if (!userId || !activityId) {
+      return res.status(400).json({ error: "กรุณาระบุ userId และ activityId" });
+    }
+
+    const attendance = await prisma.attendance.findUnique({
+      where: { userId_activityId: { userId, activityId } },
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            department: true,
+          },
+        },
+        activity: {
+          include: {
+            department: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!attendance) {
+      return res.status(404).json({ error: "ไม่พบข้อมูลการเข้าร่วมกิจกรรม" });
+    }
+
+    const isInProgress =
+      attendance.status === "Inprogress" || attendance.status === "inprogress";
+    if (!isInProgress) {
+      return res.status(400).json({ error: "สถานะปัจจุบันไม่ใช่ Inprogress" });
+    }
+
+    const updatedAttendance = await prisma.attendance.update({
+      where: { id: attendance.id },
+      data: { status: "completed" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            studentId: true,
+            fullname: true,
+            email: true,
+            phone: true,
+            department: true,
+          },
+        },
+        activity: {
+          include: {
+            department: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // อัปเดตจำนวนผู้เข้าร่วมในกิจกรรม
+    const attendanceCount = await prisma.attendance.count({
+      where: {
+        activityId,
+        status: {
+          in: ACTIVE_STATUSES_FOR_COUNT,
+        },
+      },
+    });
+
+    await prisma.activity.update({
+      where: { id: activityId },
+      data: {
+        peopleCount: attendanceCount,
+      },
+    });
+
+    return res.json(updatedAttendance);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

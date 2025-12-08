@@ -263,6 +263,14 @@ Base URL: `http://<HOST>:<PORT>/api`
     }
     ```
 
+- POST `/attendances/complete`
+  - Auth: No
+  - Body:
+    ```json
+    { "userId": "<user-uuid>", "activityId": "<activity-uuid>" }
+    ```
+  - If the attendance status is `Inprogress`, it will be updated to `completed`; otherwise returns 400.
+
 - PUT `/attendances/:id`
   - Auth: No
   - Body: partial (update reason/status)
