@@ -16,6 +16,7 @@ export const getAllUsers = async (req, res) => {
       where,
       include: {
         major: true,
+        department: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -38,6 +39,7 @@ export const getUserById = async (req, res) => {
       where: { id },
       include: {
         major: true,
+        department: true,
         activities: {
           include: {
             department: true,
@@ -70,6 +72,7 @@ export const createUser = async (req, res) => {
       email,
       password,
       phone,
+      departmentId,
       majorId,
       userType,
       birthday,
@@ -117,6 +120,12 @@ export const createUser = async (req, res) => {
       if (!major) return res.status(404).json({ error: 'Major not found' });
     }
 
+    // ถ้ามี departmentId ให้ตรวจสอบว่า department มีอยู่
+    if (departmentId) {
+      const department = await prisma.department.findUnique({ where: { id: departmentId } });
+      if (!department) return res.status(404).json({ error: 'Department not found' });
+    }
+
     // Hash password ถ้ามี (สำหรับพนักงาน)
     let hashedPassword = null;
     if (password) {
@@ -130,6 +139,7 @@ export const createUser = async (req, res) => {
         email,
         password: hashedPassword,
         phone,
+        departmentId,
         majorId,
         userType,
         birthday,
@@ -138,6 +148,7 @@ export const createUser = async (req, res) => {
       },
       include: {
         major: true,
+        department: true,
       },
     });
 
@@ -157,6 +168,7 @@ export const updateUser = async (req, res) => {
       email,
       password,
       phone,
+      departmentId,
       majorId,
       userType,
       birthday,
@@ -172,6 +184,9 @@ export const updateUser = async (req, res) => {
     if (!existingUser) {
       return res.status(404).json({ error: "ไม่พบข้อมูลผู้ใช้" });
     }
+
+    // สร้าง updateData แบบ partial: เฉพาะ field ที่ส่งมาเท่านั้น
+    const updateData = {};
 
     // ตรวจสอบ email ซ้ำ (เฉพาะกรณีอัปเดต)
     if (email && email !== existingUser.email) {
@@ -203,12 +218,17 @@ export const updateUser = async (req, res) => {
       if (!major) return res.status(404).json({ error: 'Major not found' });
     }
 
-    // สร้าง updateData แบบ partial: เฉพาะ field ที่ส่งมาเท่านั้น
-    const updateData = {};
+    // ถ้ามี departmentId ให้ตรวจสอบว่า department มีอยู่
+    if (departmentId && departmentId !== existingUser.departmentId) {
+      const department = await prisma.department.findUnique({ where: { id: departmentId } });
+      if (!department) return res.status(404).json({ error: 'Department not found' });
+    }
+
     if (studentId !== undefined) updateData.studentId = studentId;
     if (fullname !== undefined) updateData.fullname = fullname;
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
     if (majorId !== undefined) updateData.majorId = majorId;
     if (userType !== undefined) updateData.userType = userType;
     if (birthday !== undefined) updateData.birthday = birthday;
@@ -225,7 +245,11 @@ export const updateUser = async (req, res) => {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
-    const updatedUser = await prisma.user.update({ where: { id }, data: updateData, include: { major: true } });
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      include: { major: true, department: true }
+    });
     return res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: error.message });

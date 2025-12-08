@@ -71,12 +71,22 @@ export const getAllMajors = async (req, res) => {
       include: {
         department: { select: { id: true, name: true } },
         users: { select: { id: true, fullname: true, email: true } },
-        activities: { select: { id: true, name: true } }
+        majorJoins: {
+          include: {
+            activity: { select: { id: true, name: true, date: true, status: true } }
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });
 
-    res.status(200).json(majors);
+    // แปลง majorJoins เป็น activities ที่ front ใช้งานสะดวก
+    const mapped = majors.map((m) => ({
+      ...m,
+      activities: m.majorJoins.map((mj) => mj.activity).filter(Boolean)
+    }));
+
+    res.status(200).json(mapped);
   } catch (error) {
     console.error('Error fetching majors:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -93,11 +103,19 @@ export const getMajorById = async (req, res) => {
       include: {
         department: { select: { id: true, name: true } },
         users: { select: { id: true, fullname: true, email: true } },
-        activities: true
+        majorJoins: {
+          include: {
+            activity: true
+          }
+        }
       }
     });
     if (!major) return res.status(404).json({ message: `Major with ID '${id}' not found.` });
-    res.status(200).json(major);
+    const mapped = {
+      ...major,
+      activities: major.majorJoins.map((mj) => mj.activity).filter(Boolean)
+    };
+    res.status(200).json(mapped);
   } catch (error) {
     console.error(`Error fetching major with ID ${req.params.id}:`, error);
     res.status(500).json({ message: 'Internal server error' });
@@ -143,7 +161,7 @@ export const deleteMajor = async (req, res) => {
 
     // Check for dependent users or activities (optional: decide whether to cascade or prevent)
     const userCount = await prisma.user.count({ where: { majorId: id } });
-    const activityCount = await prisma.activity.count({ where: { id: id } });
+    const activityCount = await prisma.majorJoinActivity.count({ where: { majorId: id } });
     if (userCount > 0 || activityCount > 0) {
       return res.status(409).json({ message: 'Cannot delete major. It has associated users or activities.' });
     }

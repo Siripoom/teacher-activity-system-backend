@@ -11,9 +11,13 @@ async function main() {
   console.log("🗑️  Cleaning database...");
   await prisma.attendance.deleteMany();
   await prisma.fileActivity.deleteMany();
+  await prisma.majorJoinActivity.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.major.deleteMany();
   await prisma.department.deleteMany();
+  await prisma.typeActivity.deleteMany();
+  await prisma.attendance.deleteMany();
   await prisma.log.deleteMany();
 
   // สร้างแผนก
@@ -22,42 +26,57 @@ async function main() {
     prisma.department.create({
       data: {
         name: "คอมพิวเตอร์ศึกษา",
-        major: "คอมพิวเตอร์ศึกษา",
       },
     }),
     prisma.department.create({
       data: {
         name: "ครุศาสตร์โยธา",
-        major: "ครุศาสตร์โยธา",
       },
     }),
     prisma.department.create({
       data: {
         name: "ครุศาสตร์ไฟฟ้า",
-        major: "ครุศาสตร์ไฟฟ้า",
       },
     }),
     prisma.department.create({
       data: {
         name: "ครุศาสตร์เครื่องกล",
-        major: "ครุศาสตร์เครื่องกล",
       },
     }),
     prisma.department.create({
       data: {
         name: "ครุศาสตร์เทคโนโลยีและสารสนเทศ",
-        major: "ครุศาสตร์เทคโนโลยีและสารสนเทศ",
       },
     }),
     prisma.department.create({
       data: {
         name: "บริหารเทคนิคศึกษา",
-        major: "บริหารเทคนิคศึกษา",
       },
     }),
   ]);
 
   console.log(`✅ Created ${departments.length} departments`);
+
+  // สร้างสาขา
+  console.log("📚 Creating majors...");
+  const majors = await Promise.all([
+    prisma.major.create({ data: { name: "คอมพิวเตอร์ศึกษา", departmentId: departments[0].id } }),
+    prisma.major.create({ data: { name: "ครุศาสตร์โยธา", departmentId: departments[1].id } }),
+    prisma.major.create({ data: { name: "ครุศาสตร์ไฟฟ้า", departmentId: departments[2].id } }),
+    prisma.major.create({ data: { name: "ครุศาสตร์เครื่องกล", departmentId: departments[3].id } }),
+    prisma.major.create({ data: { name: "ครุศาสตร์เทคโนโลยีและสารสนเทศ", departmentId: departments[4].id } }),
+    prisma.major.create({ data: { name: "บริหารเทคนิคศึกษา", departmentId: departments[5].id } }),
+  ]);
+  console.log(`✅ Created ${majors.length} majors`);
+
+  // สร้างประเภทกิจกรรม
+  console.log("🏷️  Creating type activities...");
+  const typeActivities = await Promise.all([
+    prisma.typeActivity.create({ data: { name: "วิชาการ" } }),
+    prisma.typeActivity.create({ data: { name: "บริการวิชาการ" } }),
+    prisma.typeActivity.create({ data: { name: "จิตอาสา" } }),
+  ]);
+  console.log(`✅ Created ${typeActivities.length} type activities`);
 
   // สร้างผู้ดูแลระบบ (Admin)
   console.log("👑 Creating admin user...");
@@ -70,6 +89,7 @@ async function main() {
       phone: "0812345678",
       userType: "admin",
       status: "active",
+      departmentId: departments[0].id,
     },
   });
 
@@ -86,6 +106,7 @@ async function main() {
         password: teacherPassword,
         phone: "0823456789",
         departmentId: departments[0].id,
+        majorId: majors[0].id,
         userType: "teacher",
         status: "active",
       },
@@ -97,6 +118,7 @@ async function main() {
         password: teacherPassword,
         phone: "0834567890",
         departmentId: departments[1].id,
+        majorId: majors[1].id,
         userType: "teacher",
         status: "active",
       },
@@ -108,6 +130,7 @@ async function main() {
         password: teacherPassword,
         phone: "0845678901",
         departmentId: departments[2].id,
+        majorId: majors[2].id,
         userType: "teacher",
         status: "active",
       },
@@ -119,6 +142,7 @@ async function main() {
         password: teacherPassword,
         phone: "0856789012",
         departmentId: departments[3].id,
+        majorId: majors[3].id,
         userType: "teacher",
         status: "active",
       },
@@ -130,6 +154,7 @@ async function main() {
         password: teacherPassword,
         phone: "0867890123",
         departmentId: departments[4].id,
+        majorId: majors[4].id,
         userType: "teacher",
         status: "active",
       },
@@ -141,6 +166,7 @@ async function main() {
         password: teacherPassword,
         phone: "0878901234",
         departmentId: departments[5].id,
+        majorId: majors[5].id,
         userType: "teacher",
         status: "active",
       },
@@ -160,6 +186,7 @@ async function main() {
         email: "somsak.k@student.ac.th",
         phone: "0867890123",
         departmentId: departments[0].id,
+        majorId: majors[0].id,
         userType: "student",
         birthday: "2547-05-15",
         status: "active",
@@ -172,6 +199,7 @@ async function main() {
         email: "wilai.d@student.ac.th",
         phone: "0878901234",
         departmentId: departments[0].id,
+        majorId: majors[0].id,
         userType: "student",
         birthday: "2547-08-20",
         status: "active",
@@ -185,6 +213,7 @@ async function main() {
         email: "prayut.s@student.ac.th",
         phone: "0889012345",
         departmentId: departments[1].id,
+        majorId: majors[1].id,
         userType: "student",
         birthday: "2547-03-10",
         status: "active",
@@ -197,6 +226,7 @@ async function main() {
         email: "kamonwan.j@student.ac.th",
         phone: "0890123456",
         departmentId: departments[1].id,
+        majorId: majors[1].id,
         userType: "student",
         birthday: "2547-11-25",
         status: "active",
@@ -210,6 +240,7 @@ async function main() {
         email: "anucha.p@student.ac.th",
         phone: "0801234567",
         departmentId: departments[2].id,
+        majorId: majors[2].id,
         userType: "student",
         birthday: "2547-07-18",
         status: "active",
@@ -222,6 +253,7 @@ async function main() {
         email: "rattana.m@student.ac.th",
         phone: "0812345679",
         departmentId: departments[2].id,
+        majorId: majors[2].id,
         userType: "student",
         birthday: "2547-12-05",
         status: "active",
@@ -235,6 +267,7 @@ async function main() {
         email: "chaiwat.c@student.ac.th",
         phone: "0823456780",
         departmentId: departments[3].id,
+        majorId: majors[3].id,
         userType: "student",
         birthday: "2547-09-30",
         status: "active",
@@ -247,6 +280,7 @@ async function main() {
         email: "piyanut.s@student.ac.th",
         phone: "0834567891",
         departmentId: departments[3].id,
+        majorId: majors[3].id,
         userType: "student",
         birthday: "2547-02-14",
         status: "active",
@@ -260,6 +294,7 @@ async function main() {
         email: "thanakorn.r@student.ac.th",
         phone: "0845678902",
         departmentId: departments[4].id,
+        majorId: majors[4].id,
         userType: "student",
         birthday: "2547-06-22",
         status: "active",
@@ -272,6 +307,7 @@ async function main() {
         email: "nipaporn.s@student.ac.th",
         phone: "0856789013",
         departmentId: departments[4].id,
+        majorId: majors[4].id,
         userType: "student",
         birthday: "2547-04-18",
         status: "active",
@@ -285,6 +321,7 @@ async function main() {
         email: "surasak.m@student.ac.th",
         phone: "0867890124",
         departmentId: departments[5].id,
+        majorId: majors[5].id,
         userType: "student",
         birthday: "2547-01-08",
         status: "active",
@@ -297,6 +334,7 @@ async function main() {
         email: "phimchanok.d@student.ac.th",
         phone: "0878901235",
         departmentId: departments[5].id,
+        majorId: majors[5].id,
         userType: "student",
         birthday: "2547-10-12",
         status: "active",
@@ -317,6 +355,7 @@ async function main() {
         address: "หอประชุมใหญ่",
         departmentId: departments[0].id,
         responsibleId: teachers[0].id,
+        typeActivityId: typeActivities[0].id,
         maxPeopleCount: 200,
         hour: 4,
         status: "planned",
@@ -330,6 +369,7 @@ async function main() {
         address: "ห้องประชุมภาควิชาครุศาสตร์โยธา",
         departmentId: departments[1].id,
         responsibleId: teachers[1].id,
+        typeActivityId: typeActivities[0].id,
         maxPeopleCount: 100,
         hour: 6,
         status: "planned",
@@ -343,6 +383,7 @@ async function main() {
         address: "ห้องประชุมภาควิชาครุศาสตร์ไฟฟ้า",
         departmentId: departments[2].id,
         responsibleId: teachers[2].id,
+        typeActivityId: typeActivities[1].id,
         maxPeopleCount: 150,
         hour: 3,
         status: "planned",
@@ -356,6 +397,7 @@ async function main() {
         address: "ห้องปฏิบัติการภาควิชาครุศาสตร์เครื่องกล",
         departmentId: departments[3].id,
         responsibleId: teachers[3].id,
+        typeActivityId: typeActivities[1].id,
         maxPeopleCount: 80,
         hour: 8,
         status: "planned",
@@ -369,6 +411,7 @@ async function main() {
         address: "ภาควิชาครุศาสตร์เทคโนโลยีและสารสนเทศ",
         departmentId: departments[4].id,
         responsibleId: teachers[4].id,
+        typeActivityId: typeActivities[0].id,
         maxPeopleCount: 100,
         hour: 24,
         status: "planned",
@@ -382,6 +425,7 @@ async function main() {
         address: "ห้องประชุมภาควิชาบริหารเทคนิคศึกษา",
         departmentId: departments[5].id,
         responsibleId: teachers[5].id,
+        typeActivityId: typeActivities[2].id,
         maxPeopleCount: 120,
         hour: 5,
         status: "planned",
@@ -395,6 +439,7 @@ async function main() {
         address: "ชุมชนบ้านสวนดอก",
         departmentId: departments[0].id,
         responsibleId: teachers[0].id,
+        typeActivityId: typeActivities[2].id,
         peopleCount: 45,
         maxPeopleCount: 50,
         hour: 8,
@@ -404,6 +449,21 @@ async function main() {
   ]);
 
   console.log(`✅ Created ${activities.length} activities`);
+
+  // เชื่อมสาขาเข้ากับกิจกรรม (ตัวอย่าง)
+  console.log("🔗 Linking majors to activities...");
+  await prisma.majorJoinActivity.createMany({
+    data: [
+      { majorId: majors[0].id, activityId: activities[0].id },
+      { majorId: majors[1].id, activityId: activities[1].id },
+      { majorId: majors[2].id, activityId: activities[2].id },
+      { majorId: majors[3].id, activityId: activities[3].id },
+      { majorId: majors[4].id, activityId: activities[4].id },
+      { majorId: majors[5].id, activityId: activities[5].id },
+      { majorId: majors[0].id, activityId: activities[6].id },
+    ],
+    skipDuplicates: true,
+  });
 
   // สร้างการลงทะเบียนเข้าร่วมกิจกรรม
   console.log("📝 Creating attendances...");
