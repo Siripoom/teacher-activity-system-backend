@@ -43,7 +43,9 @@ export const register = async (req, res) => {
 
     // ตรวจสอบ departmentId ถ้ามี
     if (departmentId) {
-      const department = await prisma.department.findUnique({ where: { id: departmentId } });
+      const department = await prisma.department.findUnique({
+        where: { id: departmentId },
+      });
       if (!department) {
         return res.status(404).json({ error: "ไม่พบแผนกที่ระบุ" });
       }

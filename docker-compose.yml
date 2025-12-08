@@ -43,49 +43,49 @@ services:
       retries: 3
 
   # Backend API
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - DATABASE_URL=${DATABASE_URL}
-    container_name: teacher_activity_backend
-    restart: always
-    environment:
-      - NODE_ENV=${NODE_ENV}
-      - PORT=${PORT}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
-      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
-      - UPLOAD_DIR=${UPLOAD_DIR}
-      - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES}
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
-      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
-    ports:
-      - "${PORT}:${PORT}"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
-    networks:
-      - teacher_network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+  # backend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - DATABASE_URL=${DATABASE_URL}
+  #   container_name: teacher_activity_backend
+  #   restart: always
+  #   environment:
+  #     - NODE_ENV=${NODE_ENV}
+  #     - PORT=${PORT}
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #     - JWT_SECRET=${JWT_SECRET}
+  #     - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+  #     - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+  #     - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN}
+  #     - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+  #     - MAX_FILE_SIZE=${MAX_FILE_SIZE}
+  #     - UPLOAD_DIR=${UPLOAD_DIR}
+  #     - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES}
+  #     - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
+  #     - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
+  #   ports:
+  #     - "${PORT}:${PORT}"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./uploads:/app/uploads
+  #     - ./logs:/app/logs
+  #   networks:
+  #     - teacher_network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:${PORT}/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 60s
 
 volumes:
   pgdata:
