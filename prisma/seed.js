@@ -188,6 +188,7 @@ async function main() {
         departmentId: departments[0].id,
         majorId: majors[0].id,
         userType: "student",
+	      level:"1",
         birthday: "2547-05-15",
         status: "active",
       },

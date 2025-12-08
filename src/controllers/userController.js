@@ -9,7 +9,12 @@ export const getAllUsers = async (req, res) => {
 
     const where = {};
     if (userType) where.userType = userType;
-    if (status) where.status = status;
+    // ถ้าไม่ระบุ status ให้แสดงเฉพาะ active (ไม่แสดง deleted)
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = "active";
+    }
     if (majorId) where.majorId = majorId;
 
     const users = await prisma.user.findMany({
@@ -93,7 +98,9 @@ export const createUser = async (req, res) => {
 
     // ตรวจสอบ studentId ซ้ำ (ถ้ามี) และคำนวนระดับชั้นจาก 2 หลักหน้า
     if (studentId) {
-      const existingStudent = await prisma.user.findUnique({ where: { studentId } });
+      const existingStudent = await prisma.user.findUnique({
+        where: { studentId },
+      });
       if (existingStudent) {
         return res.status(400).json({ error: "รหัสนักศึกษานี้ถูกใช้งานแล้ว" });
       }
@@ -117,13 +124,16 @@ export const createUser = async (req, res) => {
     // ถ้ามี majorId ให้ตรวจสอบว่า major มีอยู่จริง
     if (majorId) {
       const major = await prisma.major.findUnique({ where: { id: majorId } });
-      if (!major) return res.status(404).json({ error: 'Major not found' });
+      if (!major) return res.status(404).json({ error: "Major not found" });
     }
 
     // ถ้ามี departmentId ให้ตรวจสอบว่า department มีอยู่
     if (departmentId) {
-      const department = await prisma.department.findUnique({ where: { id: departmentId } });
-      if (!department) return res.status(404).json({ error: 'Department not found' });
+      const department = await prisma.department.findUnique({
+        where: { id: departmentId },
+      });
+      if (!department)
+        return res.status(404).json({ error: "Department not found" });
     }
 
     // Hash password ถ้ามี (สำหรับพนักงาน)
@@ -170,6 +180,7 @@ export const updateUser = async (req, res) => {
       phone,
       departmentId,
       majorId,
+      level,
       userType,
       birthday,
       profilePic,
@@ -191,13 +202,17 @@ export const updateUser = async (req, res) => {
     // ตรวจสอบ email ซ้ำ (เฉพาะกรณีอัปเดต)
     if (email && email !== existingUser.email) {
       const emailExists = await prisma.user.findUnique({ where: { email } });
-      if (emailExists) return res.status(400).json({ error: "อีเมลนี้ถูกใช้งานแล้ว" });
+      if (emailExists)
+        return res.status(400).json({ error: "อีเมลนี้ถูกใช้งานแล้ว" });
     }
 
     // ตรวจสอบ studentId ซ้ำ (เฉพาะกรณีอัปเดต) และคำนวน level ถ้ามีการเปลี่ยน
     if (studentId && studentId !== existingUser.studentId) {
-      const studentIdExists = await prisma.user.findUnique({ where: { studentId } });
-      if (studentIdExists) return res.status(400).json({ error: "รหัสนักศึกษานี้ถูกใช้งานแล้ว" });
+      const studentIdExists = await prisma.user.findUnique({
+        where: { studentId },
+      });
+      if (studentIdExists)
+        return res.status(400).json({ error: "รหัสนักศึกษานี้ถูกใช้งานแล้ว" });
 
       try {
         const currentYear = new Date().getFullYear();
@@ -215,13 +230,16 @@ export const updateUser = async (req, res) => {
     // ถ้ามี majorId ให้ตรวจสอบว่า major มีอยู่
     if (majorId && majorId !== existingUser.majorId) {
       const major = await prisma.major.findUnique({ where: { id: majorId } });
-      if (!major) return res.status(404).json({ error: 'Major not found' });
+      if (!major) return res.status(404).json({ error: "Major not found" });
     }
 
     // ถ้ามี departmentId ให้ตรวจสอบว่า department มีอยู่
     if (departmentId && departmentId !== existingUser.departmentId) {
-      const department = await prisma.department.findUnique({ where: { id: departmentId } });
-      if (!department) return res.status(404).json({ error: 'Department not found' });
+      const department = await prisma.department.findUnique({
+        where: { id: departmentId },
+      });
+      if (!department)
+        return res.status(404).json({ error: "Department not found" });
     }
 
     if (studentId !== undefined) updateData.studentId = studentId;
@@ -230,6 +248,7 @@ export const updateUser = async (req, res) => {
     if (phone !== undefined) updateData.phone = phone;
     if (departmentId !== undefined) updateData.departmentId = departmentId;
     if (majorId !== undefined) updateData.majorId = majorId;
+    if (level !== undefined) updateData.level = level;
     if (userType !== undefined) updateData.userType = userType;
     if (birthday !== undefined) updateData.birthday = birthday;
     if (profilePic !== undefined) updateData.profilePic = profilePic;
@@ -248,7 +267,7 @@ export const updateUser = async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
-      include: { major: true, department: true }
+      include: { major: true, department: true },
     });
     return res.json(updatedUser);
   } catch (error) {
@@ -270,7 +289,11 @@ export const deleteUser = async (req, res) => {
     }
 
     // Soft delete โดยการเปลี่ยน status
-    const deletedUser = await prisma.user.update({ where: { id }, data: { status: "deleted" }, include: { major: true } });
+    const deletedUser = await prisma.user.update({
+      where: { id },
+      data: { status: "deleted" },
+      include: { major: true },
+    });
 
     return res.json({ message: "ลบผู้ใช้เรียบร้อยแล้ว", user: deletedUser });
   } catch (error) {
