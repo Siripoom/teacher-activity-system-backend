@@ -1,6 +1,11 @@
 import prisma from "../config/db.js";
 
-const VALID_ACTIVITY_STATUSES = ["planned", "inprogress", "completed", "cancelled"];
+const VALID_ACTIVITY_STATUSES = [
+  "planned",
+  "inprogress",
+  "completed",
+  "cancelled",
+];
 const buildDate = (value, fieldName, res) => {
   if (!value) return undefined;
   const parsed = new Date(value);
@@ -10,8 +15,6 @@ const buildDate = (value, fieldName, res) => {
   }
   return parsed;
 };
-
-
 
 /**
  * สรุปรายงานกิจกรรม
@@ -27,7 +30,15 @@ const buildDate = (value, fieldName, res) => {
  */
 export const getActivityReport = async (req, res) => {
   try {
-    const { departmentId, majorId, status, typeActivityId, year, startDate, endDate } = req.query;
+    const {
+      departmentId,
+      majorId,
+      status,
+      typeActivityId,
+      year,
+      startDate,
+      endDate,
+    } = req.query;
 
     if (status && !VALID_ACTIVITY_STATUSES.includes(status)) {
       return res.status(400).json({ error: "สถานะกิจกรรมไม่ถูกต้อง" });
@@ -46,7 +57,9 @@ export const getActivityReport = async (req, res) => {
     const parsedEnd = buildDate(endDate, "endDate", res);
     if (parsedEnd === null) return;
     if (parsedStart && parsedEnd && parsedEnd < parsedStart) {
-      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+      return res
+        .status(400)
+        .json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
     }
 
     const where = {};
@@ -94,7 +107,6 @@ export const getActivityReport = async (req, res) => {
             },
           },
         },
-        
       },
       orderBy: { date: "desc" },
     });
@@ -123,10 +135,12 @@ export const getActivityReport = async (req, res) => {
       count: value,
     }));
 
-    const byDepartment = Object.entries(departmentCount).map(([compound, count]) => {
-      const [deptId, name] = compound.split("|");
-      return { departmentId: deptId, departmentName: name, count };
-    });
+    const byDepartment = Object.entries(departmentCount).map(
+      ([compound, count]) => {
+        const [deptId, name] = compound.split("|");
+        return { departmentId: deptId, departmentName: name, count };
+      }
+    );
 
     const byMajor = Object.entries(majorCount).map(([compound, count]) => {
       const [majId, name] = compound.split("|");
@@ -170,11 +184,17 @@ export const getActivitiesBySingleFilter = async (req, res) => {
     ].filter(Boolean);
 
     if (provided.length === 0) {
-      return res.status(400).json({ error: "กรุณาระบุ departmentId หรือ year หรือ typeActivityId อย่างใดอย่างหนึ่ง" });
+      return res.status(400).json({
+        error:
+          "กรุณาระบุ departmentId หรือ year หรือ typeActivityId อย่างใดอย่างหนึ่ง",
+      });
     }
 
     if (provided.length > 1) {
-      return res.status(400).json({ error: "สามารถระบุได้ครั้งละ 1 ตัวเลือก (departmentId หรือ year หรือ typeActivityId)" });
+      return res.status(400).json({
+        error:
+          "สามารถระบุได้ครั้งละ 1 ตัวเลือก (departmentId หรือ year หรือ typeActivityId)",
+      });
     }
 
     const where = {};
@@ -230,7 +250,12 @@ export const getActivitiesBySingleFilter = async (req, res) => {
     const totalHour = activities.reduce((sum, act) => sum + (act.hour || 0), 0);
     const countActivity = activities.length;
 
-    return res.json({ filter: provided[0], totalHour, countActivity, activities });
+    return res.json({
+      filter: provided[0],
+      totalHour,
+      countActivity,
+      activities,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -356,7 +381,7 @@ export const getActivityById = async (req, res) => {
 
 /**
  * สร้างกิจกรรมใหม่
- * Request body (JSON):
+ * Request body (JSON or multipart/form-data):
  * - `name` (string, required)
  * - `date` (ISO string or date string, required) e.g. "2025-12-10T09:00:00.000Z"
  * - `address` (string, required)
@@ -373,7 +398,8 @@ export const getActivityById = async (req, res) => {
  * - `level` (string, optional)
  * - `status` (string enum, optional) — หากไม่ส่งใช้ค่า default: planned
  * - `majorIds` (array of string uuids, optional) — ถ้าส่งมา จะสร้างความสัมพันธ์ใน `majorJoinActivity`. ทุก majorId ต้องมีอยู่จริงและสังกัด `departmentId` ที่ส่งเข้ามา
- * Response: สร้าง activity แล้วคืนข้อมูล activity (รวม department, responsible)
+ * - `files` (array of files, optional) — ไฟล์แนบกิจกรรม (รองรับหลายไฟล์)
+ * Response: สร้าง activity แล้วคืนข้อมูล activity (รวม department, responsible, fileActivities)
  */
 export const createActivity = async (req, res) => {
   try {
@@ -396,7 +422,14 @@ export const createActivity = async (req, res) => {
       status,
     } = req.body;
 
-    if (!name || !date || !address || !departmentId || !responsibleId || !typeActivityId) {
+    if (
+      !name ||
+      !date ||
+      !address ||
+      !departmentId ||
+      !responsibleId ||
+      !typeActivityId
+    ) {
       return res.status(400).json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
     }
 
@@ -422,7 +455,9 @@ export const createActivity = async (req, res) => {
     }
 
     if (parsedStartDate && parsedEndDate && parsedEndDate < parsedStartDate) {
-      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+      return res
+        .status(400)
+        .json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
     }
 
     let parsedYear;
@@ -472,7 +507,9 @@ export const createActivity = async (req, res) => {
       }
 
       // ตรวจสอบว่าแต่ละสาขาสังกัดแผนกเดียวกับ departmentId
-      const invalidMajor = majorsToJoin.find((m) => m.departmentId !== departmentId);
+      const invalidMajor = majorsToJoin.find(
+        (m) => m.departmentId !== departmentId
+      );
       if (invalidMajor) {
         return res.status(400).json({ error: "มีสาขาที่ไม่สังกัดแผนกที่ระบุ" });
       }
@@ -487,9 +524,9 @@ export const createActivity = async (req, res) => {
         departmentId,
         responsibleId,
         typeActivityId,
-        peopleCount,
-        maxPeopleCount,
-        hour,
+        peopleCount: 0,
+        maxPeopleCount: Number(maxPeopleCount),
+        hour: Number(hour),
         status,
         startDate: parsedStartDate,
         endDate: parsedEndDate,
@@ -517,10 +554,46 @@ export const createActivity = async (req, res) => {
         activityId: newActivity.id,
       }));
 
-      await prisma.majorJoinActivity.createMany({ data: createData, skipDuplicates: true });
+      await prisma.majorJoinActivity.createMany({
+        data: createData,
+        skipDuplicates: true,
+      });
     }
 
-    res.status(201).json(newActivity);
+    // บันทึกไฟล์ที่อัปโหลด (ถ้ามี)
+    if (req.files && req.files.length > 0) {
+      const fileCreateData = req.files.map((file) => ({
+        activityId: newActivity.id,
+        filepath: file.path,
+      }));
+
+      await prisma.fileActivity.createMany({ data: fileCreateData });
+    }
+
+    // ดึงข้อมูลกิจกรรมพร้อมไฟล์ที่สร้าง
+    const activityWithFiles = await prisma.activity.findUnique({
+      where: { id: newActivity.id },
+      include: {
+        department: true,
+        typeActivity: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+        fileActivities: true,
+        majorJoins: {
+          include: {
+            major: true,
+          },
+        },
+      },
+    });
+
+    res.status(201).json(activityWithFiles);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -595,10 +668,7 @@ export const updateActivity = async (req, res) => {
       }
     }
 
-    if (
-      typeActivityId &&
-      typeActivityId !== existingActivity.typeActivityId
-    ) {
+    if (typeActivityId && typeActivityId !== existingActivity.typeActivityId) {
       const typeActivity = await prisma.typeActivity.findUnique({
         where: { id: typeActivityId },
       });
@@ -646,10 +716,14 @@ export const updateActivity = async (req, res) => {
       }
     }
 
-    const startToValidate = hasStartDate ? parsedStartDate : existingActivity.startDate;
+    const startToValidate = hasStartDate
+      ? parsedStartDate
+      : existingActivity.startDate;
     const endToValidate = hasEndDate ? parsedEndDate : existingActivity.endDate;
     if (startToValidate && endToValidate && endToValidate < startToValidate) {
-      return res.status(400).json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
+      return res
+        .status(400)
+        .json({ error: "endDate ต้องไม่น้อยกว่า startDate" });
     }
 
     let parsedYear;
@@ -678,7 +752,9 @@ export const updateActivity = async (req, res) => {
 
       // ถ้ามีการเปลี่ยน departmentId ให้ตรวจสอบว่าสาขายังสังกัดแผนกที่ถูกต้อง
       const deptIdToCheck = departmentId || existingActivity.departmentId;
-      const invalidMajor = majorsToJoin.find((m) => m.departmentId !== deptIdToCheck);
+      const invalidMajor = majorsToJoin.find(
+        (m) => m.departmentId !== deptIdToCheck
+      );
       if (invalidMajor) {
         return res.status(400).json({ error: "มีสาขาที่ไม่สังกัดแผนกที่ระบุ" });
       }
@@ -690,9 +766,11 @@ export const updateActivity = async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (departmentId !== undefined) updateData.departmentId = departmentId;
     if (responsibleId !== undefined) updateData.responsibleId = responsibleId;
-    if (typeActivityId !== undefined) updateData.typeActivityId = typeActivityId;
+    if (typeActivityId !== undefined)
+      updateData.typeActivityId = typeActivityId;
     if (peopleCount !== undefined) updateData.peopleCount = peopleCount;
-    if (maxPeopleCount !== undefined) updateData.maxPeopleCount = maxPeopleCount;
+    if (maxPeopleCount !== undefined)
+      updateData.maxPeopleCount = maxPeopleCount;
     if (hour !== undefined) updateData.hour = hour;
     if (status !== undefined) updateData.status = status;
     if (date !== undefined) updateData.date = parsedDate;
@@ -728,7 +806,10 @@ export const updateActivity = async (req, res) => {
           activityId: id,
         }));
 
-        await prisma.majorJoinActivity.createMany({ data: createData, skipDuplicates: true });
+        await prisma.majorJoinActivity.createMany({
+          data: createData,
+          skipDuplicates: true,
+        });
       }
     }
 
