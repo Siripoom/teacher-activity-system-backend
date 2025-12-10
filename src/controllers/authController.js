@@ -51,10 +51,12 @@ export const register = async (req, res) => {
       }
     }
 
-    // Hash password (ถ้ามี)
+    // Hash password: ใช้ password ที่ส่งมา ถ้าไม่มีให้ใช้เบอร์โทรเป็น password เริ่มต้น
     let hashedPassword = null;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
+    const defaultPassword = password || phone;
+
+    if (defaultPassword) {
+      hashedPassword = await bcrypt.hash(defaultPassword, 10);
     }
 
     const newUser = await prisma.user.create({
