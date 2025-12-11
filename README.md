@@ -246,6 +246,35 @@ Base URL: `http://<HOST>:<PORT>/api`
   - Auth: No
   - Get activities where `responsibleId` == userId (includes department, attendances, fileActivities, typeActivity, majorJoins)
 
+- GET `/activities/grouped-by-type`
+  - Auth: No
+  - Query params (required): `departmentId`
+  - Returns activities filtered by department and grouped by activity type
+  - Example response:
+    ```json
+    [
+      {
+        "typeActivityId": "<uuid>",
+        "typeActivityName": "กิจกรรมวิชาการ",
+        "typeActivity": { "id": "<uuid>", "name": "กิจกรรมวิชาการ", ... },
+        "activities": [
+          {
+            "id": "<activity-uuid>",
+            "name": "สัมมนาเทคโนโลยี",
+            "year": 2568,
+            "hour": 6,
+            "department": { ... },
+            "typeActivity": { ... },
+            "responsible": { ... },
+            "majorJoins": [ ... ],
+            "fileActivities": [ ... ],
+            "attendances": [ ... ]
+          }
+        ]
+      }
+    ]
+    ```
+
 ----
 
 ## Attendances
@@ -288,6 +317,37 @@ Base URL: `http://<HOST>:<PORT>/api`
 
 - GET `/attendances/activity/:activityId`
   - Auth: No
+
+- GET `/attendances/user/:userId/year`
+  - Auth: No
+  - Query params (optional): `year` (Buddhist Era year, defaults to current year)
+  - Returns attendances grouped by activity type
+  - Example response:
+    ```json
+    [
+      {
+        "typeActivityId": "<uuid>",
+        "typeActivityName": "กิจกรรมอาสา",
+        "typeActivity": { "id": "<uuid>", "name": "กิจกรรมอาสา", ... },
+        "attendances": [
+          {
+            "id": "<attendance-uuid>",
+            "userId": "<user-uuid>",
+            "activityId": "<activity-uuid>",
+            "status": "completed",
+            "activity": {
+              "name": "ทำความสะอาด",
+              "hour": 3,
+              "year": 2568,
+              "department": { ... },
+              "typeActivity": { ... },
+              "responsible": { ... }
+            }
+          }
+        ]
+      }
+    ]
+    ```
 
 ----
 
