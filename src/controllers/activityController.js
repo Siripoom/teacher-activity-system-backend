@@ -897,3 +897,73 @@ export const getActivitiesByResponsible = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ดึงข้อมูลกิจกรรมตาม Department และจัดกลุ่มตาม Activity Type
+export const getActivitiesByDepartmentGroupedByType = async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+
+    if (!departmentId) {
+      return res.status(400).json({ error: "กรุณาระบุ departmentId" });
+    }
+
+    // ดึงข้อมูลกิจกรรมทั้งหมดของ department
+    const activities = await prisma.activity.findMany({
+      where: {
+        departmentId,
+      },
+      include: {
+        department: true,
+        typeActivity: true,
+        responsible: {
+          select: {
+            id: true,
+            fullname: true,
+            email: true,
+            userType: true,
+          },
+        },
+        majorJoins: {
+          include: {
+            major: true,
+          },
+        },
+        fileActivities: true,
+        attendances: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: {
+        date: "desc",
+      },
+    });
+
+    // จัดกลุ่มกิจกรรมตาม typeActivity
+    const groupedActivities = activities.reduce((acc, activity) => {
+      const typeId = activity.typeActivityId;
+      const typeName = activity.typeActivity?.name || "ไม่ระบุประเภท";
+
+      if (!acc[typeId]) {
+        acc[typeId] = {
+          typeActivityId: typeId,
+          typeActivityName: typeName,
+          typeActivity: activity.typeActivity,
+          activities: [],
+        };
+      }
+
+      acc[typeId].activities.push(activity);
+      return acc;
+    }, {});
+
+    // แปลง object เป็น array
+    const result = Object.values(groupedActivities);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

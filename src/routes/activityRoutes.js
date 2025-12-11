@@ -10,6 +10,7 @@ import {
   getActivitiesByResponsible,
   getActivityReport,
   getActivitiesBySingleFilter,
+  getActivitiesByDepartmentGroupedByType,
 } from "../controllers/activityController.js";
 
 const router = express.Router();
@@ -55,6 +56,7 @@ const upload = multer({
 router.get("/", getAllActivities);
 router.get("/report", getActivityReport);
 router.get("/filter", getActivitiesBySingleFilter);
+router.get("/grouped-by-type", getActivitiesByDepartmentGroupedByType);
 router.get("/:id", getActivityById);
 router.post("/", upload.array("files", 10), createActivity);
 router.put("/:id", updateActivity);

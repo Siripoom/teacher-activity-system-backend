@@ -446,3 +446,66 @@ export const getAttendancesByActivity = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// ดึงข้อมูลการเข้าร่วมกิจกรรมของนักเรียนตามปี และจัดกลุ่มตาม Activity Type
+export const getAttendancesByUserAndYear = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { year } = req.query;
+
+    // ถ้าไม่ส่ง year มา ใช้ปีปัจจุบัน (พ.ศ.)
+    const currentYear = year ? parseInt(year) : new Date().getFullYear() + 543;
+
+    const attendances = await prisma.attendance.findMany({
+      where: {
+        userId,
+        activity: {
+          year: currentYear,
+        },
+      },
+      include: {
+        activity: {
+          include: {
+            department: true,
+            typeActivity: true,
+            responsible: {
+              select: {
+                id: true,
+                fullname: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // จัดกลุ่มตาม typeActivity
+    const groupedByType = attendances.reduce((acc, attendance) => {
+      const typeId = attendance.activity?.typeActivityId;
+      const typeName = attendance.activity?.typeActivity?.name || "ไม่ระบุประเภท";
+
+      if (!acc[typeId]) {
+        acc[typeId] = {
+          typeActivityId: typeId,
+          typeActivityName: typeName,
+          typeActivity: attendance.activity?.typeActivity,
+          attendances: [],
+        };
+      }
+
+      acc[typeId].attendances.push(attendance);
+      return acc;
+    }, {});
+
+    // แปลง object เป็น array
+    const result = Object.values(groupedByType);
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
