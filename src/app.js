@@ -23,6 +23,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/fileAttendance", express.static("uploads/fileAttendance"));
 
 // Use Routes
 app.use("/api/users", userRoutes);

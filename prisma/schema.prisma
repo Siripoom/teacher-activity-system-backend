@@ -154,12 +154,27 @@ model Attendance {
     status     AttendanceStatus @default(joined) // สถานะการเข้าร่วม
     createdAt  DateTime         @default(now()) @map("created_at") // วันที่สร้าง
     updatedAt  DateTime         @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
+    fileAttendances FileAttendance[] // ไฟล์ที่เกี่ยวข้องกับการเข้าร่วม
 
     @@unique([userId, activityId])
     @@index([userId])
     @@index([activityId])
     @@index([status])
+    @@index([createdAt])
     @@map("attendances")
+}
+
+model FileAttendance {
+    id         String           @id @default(uuid()) @db.Uuid // รหัสไฟล์ (UUID)
+    attendanceId String           @map("attendance_id") @db.Uuid // รหัสการเข้าร่วมกิจกรรม
+    attendance   Attendance       @relation(fields: [attendanceId], references: [id], onDelete: Cascade, onUpdate: Cascade) // ข้อมูลการเข้าร่วมกิจกรรม
+    file       String           @db.Text // ไฟล์
+    createdAt  DateTime         @default(now()) @map("created_at") // วันที่สร้าง
+    updatedAt  DateTime         @updatedAt @map("updated_at") // วันที่แก้ไขล่าสุด
+
+    @@unique([attendanceId])
+    @@index([attendanceId])
+    @@map("file_attendances")
 }
 
 enum UserType {

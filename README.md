@@ -382,6 +382,20 @@ Base URL: `http://<HOST>:<PORT>/api`
 - GET `/files/activity/:activityId`
   - Auth: Yes
 
+- POST `/files/upload-attendance` (multipart/form-data)
+  - Auth: Yes
+  - Form field: `file` (PDF only)
+  - Body field: `attendanceId` (UUID)
+  - Response: FileAttendance object
+
+- GET `/files/attendance/:id`
+  - Auth: Yes
+  - Returns the file content (download)
+
+- GET `/fileAttendance/:filename`
+  - Auth: No (Static file serving)
+  - Access uploaded attendance files directly via URL
+
 ----
 
 ## Logs

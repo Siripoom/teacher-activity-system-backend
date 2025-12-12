@@ -384,3 +384,74 @@ export const uploadMultipleFileActivities = async (req, res) => {
 
 
 
+
+// อัปโหลดไฟล์การเข้าร่วมกิจกรรม
+export const uploadAttendanceFile = async (req, res) => {
+  try {
+    const { attendanceId } = req.body;
+
+    if (!attendanceId) {
+      return res.status(400).json({ error: "กรุณาระบุรหัสการเข้าร่วมกิจกรรม (attendanceId)" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "กรุณาเลือกไฟล์" });
+    }
+
+    // ตรวจสอบว่าการเข้าร่วมกิจกรรมมีอยู่จริง
+    const attendance = await prisma.attendance.findUnique({
+      where: { id: attendanceId },
+    });
+
+    if (!attendance) {
+      // ลบไฟล์ที่อัปโหลดมา
+      await unlinkAsync(req.file.path);
+      return res.status(404).json({ error: "ไม่พบข้อมูลการเข้าร่วมกิจกรรม" });
+    }
+
+    const newFile = await prisma.fileAttendance.create({
+      data: {
+        attendanceId,
+        file: req.file.path,
+      },
+    });
+
+    res.status(201).json(newFile);
+  } catch (error) {
+    // ลบไฟล์ถ้ามี error
+    if (req.file) {
+      try {
+        await unlinkAsync(req.file.path);
+      } catch (unlinkError) {
+        console.error("Error deleting file:", unlinkError);
+      }
+    }
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ดึงไฟล์การเข้าร่วมกิจกรรมตาม ID
+export const getAttendanceFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const fileRecord = await prisma.fileAttendance.findUnique({
+      where: { id },
+    });
+
+    if (!fileRecord) {
+      return res.status(404).json({ error: "ไม่พบไฟล์" });
+    }
+
+    // ตรวจสอบว่าไฟล์มีอยู่จริง
+    if (!fs.existsSync(fileRecord.file)) {
+      return res.status(404).json({ error: "ไฟล์ไม่พบในระบบ" });
+    }
+
+    // ส่งไฟล์
+    const filename = path.basename(fileRecord.file);
+    res.download(fileRecord.file, filename);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

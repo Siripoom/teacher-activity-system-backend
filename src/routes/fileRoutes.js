@@ -10,8 +10,11 @@ import {
   getFilesByActivity,
   uploadStudentsCsv,
   uploadMultipleFileActivities,
+  uploadAttendanceFile,
+  getAttendanceFile,
 } from "../controllers/fileController.js";
 import { authenticate } from "../middleware/middleware.js";
+import { uploadAttendance } from "../middleware/uploadAttendanceMiddleware.js";
 
 const router = express.Router();
 
@@ -67,5 +70,14 @@ router.post(
 router.delete("/:id", authenticate, deleteFileActivity);
 router.get("/:id/download", authenticate, downloadFileActivity);
 router.get("/activity/:activityId", authenticate, getFilesByActivity);
+
+// Attendance File Routes
+router.post(
+  "/upload-attendance",
+  authenticate,
+  uploadAttendance.single("file"),
+  uploadAttendanceFile
+);
+router.get("/attendance/:id", authenticate, getAttendanceFile);
 
 export default router;
