@@ -390,3 +390,130 @@ export const getAllStudents = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// นำเข้าข้อมูลนักศึกษาจากไฟล์ CSV
+import { parse } from 'csv-parse/sync';
+
+export const importStudentsCSV = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Please upload a CSV file." });
+    }
+
+    const fileContent = req.file.buffer.toString('utf-8');
+
+    const records = parse(fileContent, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true
+    });
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    // Prepare department cache
+    const departments = await prisma.department.findMany();
+    const departmentMap = new Map(departments.map(d => [d.name, d.id]));
+
+    for (const [index, record] of records.entries()) {
+      const studentId = record['รหัสนักศึกษา'];
+      const fullname = record['ชื่อ - นามสกุล'];
+      const departmentName = record['ภาควิชา'];
+
+      if (!studentId || !fullname || !departmentName) {
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: Missing required fields`);
+        continue;
+      }
+
+      // Find Department ID
+      const departmentId = departmentMap.get(departmentName);
+
+      // If department doesn't exist, we might want to skip or maybe create? 
+      // For now, let's skip/error if department not found strictly, or maybe try to match loosely?
+      // Given the requirement is strict, let's report error if not found.
+      if (!departmentId) {
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: Department '${departmentName}' not found`);
+        continue;
+      }
+
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { studentId: studentId }
+      });
+
+      if (existingUser) {
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: Student ID ${studentId} already exists`);
+        continue;
+      }
+
+      // Calculate level/year similar to createUser
+      let level = null;
+      try {
+        const currentYear = new Date().getFullYear();
+        const yearStr = studentId.substring(0, 2);
+        const entryYear = 2500 + parseInt(yearStr, 10);
+        const currentBuddhist = currentYear + 543;
+        let computed = currentBuddhist - entryYear + 1;
+        level = String(computed);
+      } catch (err) {
+        // ignore
+      }
+
+      // Create new user (Student)
+      // Password = studentId (hashed)
+      const hashedPassword = await bcrypt.hash(studentId, 10);
+
+      // Email generation is tricky if not provided. 
+      // The schema says email is @unique and required.
+      // We might need to generate a dummy email or fail?
+      // Let's assume for now we generate email from studentId@kmutnb.ac.th if not in CSV?
+      // The prompt didn't mention email in CSV. 
+      // "รหัสนักศึกษา ชื่อ - นามสกุล ภาควิชา"
+      // I will generate email as `s${studentId}@email.com` or similar placeholder to satisfy schema.
+      const email = `s${studentId}@example.com`; // Placeholder approach
+
+      // Wait, let's check if there is an existing email collision
+      const existingEmail = await prisma.user.findUnique({ where: { email } });
+      if (existingEmail) {
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: Generated email ${email} already exists`);
+        continue;
+      }
+
+      try {
+        await prisma.user.create({
+          data: {
+            studentId,
+            fullname,
+            email,
+            password: hashedPassword,
+            departmentId,
+            userType: 'student',
+            level,
+            status: 'active'
+          }
+        });
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push(`Row ${index + 1}: Database error - ${err.message}`);
+      }
+    }
+
+    res.json({
+      message: "Import process completed",
+      summary: results
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+};

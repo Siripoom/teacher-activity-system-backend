@@ -93,6 +93,23 @@ Base URL: `http://<HOST>:<PORT>/api`
   - Auth: No
   - Returns users with userType student
 
+- GET `/users/students/all`
+  - Auth: No
+  - Returns users with userType student
+
+- POST `/users/import-csv`
+  - Auth: No
+  - Body: `multipart/form-data`
+  - Field: `file` (CSV file)
+  - CSV Header: `รหัสนักศึกษา,ชื่อ - นามสกุล,ภาควิชา`
+  - Example CSV Content:
+    ```csv
+    รหัสนักศึกษา,ชื่อ - นามสกุล,ภาควิชา
+    6701101001,สมชาย ใจดี,คอมพิวเตอร์ศึกษา
+    6701101002,สมหญิง รักเรียน,ครุศาสตร์โยธา
+    ```
+  - Note: Password defaults to `studentId`.
+
 ----
 
 ## Departments
