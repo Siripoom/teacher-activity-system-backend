@@ -78,6 +78,7 @@ router.post(
   uploadAttendance.single("file"),
   uploadAttendanceFile
 );
+
 router.get("/attendance/:id", authenticate, getAttendanceFile);
 
 export default router;

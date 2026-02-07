@@ -4,70 +4,122 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// Helper function เพื่อลบข้อมูลอย่างปลอดภัย (ไม่ error ถ้า table ไม่มี)
+async function safeDeleteMany(model, modelName) {
+  try {
+    await model.deleteMany();
+    console.log(`   ✓ Cleared ${modelName}`);
+  } catch (error) {
+    if (error.code === 'P2021') {
+      console.log(`   ⚠ Table ${modelName} does not exist, skipping...`);
+    } else {
+      throw error;
+    }
+  }
+}
+
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // ลบข้อมูลเก่าทั้งหมด
+  // ลบข้อมูลเก่าทั้งหมด (ในลำดับที่ถูกต้อง - child tables ก่อน)
   console.log("🗑️  Cleaning database...");
-  await prisma.attendance.deleteMany();
-  await prisma.fileActivity.deleteMany();
-  await prisma.majorJoinActivity.deleteMany();
-  await prisma.activity.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.major.deleteMany();
-  await prisma.department.deleteMany();
-  await prisma.typeActivity.deleteMany();
-  await prisma.attendance.deleteMany();
-  await prisma.log.deleteMany();
+
+  await safeDeleteMany(prisma.fileAttendance, 'FileAttendance');
+  await safeDeleteMany(prisma.attendance, 'Attendance');
+  await safeDeleteMany(prisma.fileActivity, 'FileActivity');
+  await safeDeleteMany(prisma.majorJoinActivity, 'MajorJoinActivity');
+  await safeDeleteMany(prisma.activity, 'Activity');
+  await safeDeleteMany(prisma.log, 'Log');
+  await safeDeleteMany(prisma.user, 'User');
+  await safeDeleteMany(prisma.major, 'Major');
+  await safeDeleteMany(prisma.department, 'Department');
+  await safeDeleteMany(prisma.typeActivity, 'TypeActivity');
+
+  console.log("✅ Database cleaned successfully");
+
+  // ข้อมูลแผนกและสาขาตามโครงสร้างจริง
+  const departmentData = [
+    {
+      name: "ครุศาสตร์เครื่องกล",
+      majors: [
+        "วิศวกรรมเครื่องกล (TM)",
+        "วิศวกรรมการผลิตและอุตสาหการ (TP, TTP)",
+        "วิศวกรรมแมคคาทรอนิกส์และหุ่นยนต์ (TT)",
+        "วิศวกรรมเครื่องกลศึกษา (MTM, S-MTM)",
+        "วิศวกรรมเครื่องกลศึกษา (DMEE)"
+      ]
+    },
+    {
+      name: "ครุศาสตร์ไฟฟ้า",
+      majors: [
+        "วิศวกรรมไฟฟ้า (TE, TTE)",
+        "วิศวกรรมไฟฟ้า (MTE, S-MTE)",
+        "วิศวกรรมไฟฟ้าศึกษา (DTE)",
+        "วิศวกรรมไฟฟ้าและพลังงาน (E-DEEE)",
+        "วิศวกรรมไฟฟ้าและการศึกษา (TEE)",
+        "วิศวกรรมไฟฟ้าและพลังงาน (หลักสูตรภาษาอังกฤษ)"
+      ]
+    },
+    {
+      name: "คอมพิวเตอร์ศึกษา",
+      majors: [
+        "เทคโนโลยีคอมพิวเตอร์ (CED, TCT)",
+        "คอมพิวเตอร์ศึกษา (MTCT, S-MTCT)",
+        "คอมพิวเตอร์ศึกษา (DTCT, S-DTCT)"
+      ]
+    },
+    {
+      name: "ครุศาสตร์เทคโนโลยีและสารสนเทศ",
+      majors: [
+        "เทคโนโลยีดิจิทัลเทคนิคศึกษา (MET, S-MET)",
+        "เทคโนโลยีดิจิทัลเทคนิคศึกษา (DET, S-DET)",
+        "เทคโนโลยีสารสนเทศและสื่อสารเพื่อการศึกษา (DICT, S-DICT)",
+        "เทคโนโลยีสารสนเทศและการสื่อสารเพื่อการศึกษา (MICT, S-MICT)"
+      ]
+    },
+    {
+      name: "ครุศาสตร์โยธา",
+      majors: [
+        "วิศวกรรมโยธาและการศึกษา (CEE)",
+        "วิศวกรรมโยธาและการศึกษา (DCEE)",
+        "วิศวกรรมโยธาและการศึกษา (MCEE, S-MCEE, G-MCEE)"
+      ]
+    },
+    {
+      name: "บริหารเทคนิคศึกษา",
+      majors: [
+        "บริหารอาชีวะและเทคนิคศึกษา (TEM)",
+        "บริหารอาชีวะและเทคนิคศึกษา (DVTM)"
+      ]
+    }
+  ];
 
   // สร้างแผนก
   console.log("📂 Creating departments...");
-  const departments = await Promise.all([
-    prisma.department.create({
-      data: {
-        name: "คอมพิวเตอร์ศึกษา",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        name: "ครุศาสตร์โยธา",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        name: "ครุศาสตร์ไฟฟ้า",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        name: "ครุศาสตร์เครื่องกล",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        name: "ครุศาสตร์เทคโนโลยีและสารสนเทศ",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        name: "บริหารเทคนิคศึกษา",
-      },
-    }),
-  ]);
-
+  const departments = [];
+  for (const dept of departmentData) {
+    const department = await prisma.department.create({
+      data: { name: dept.name },
+    });
+    departments.push({ ...department, majorNames: dept.majors });
+  }
   console.log(`✅ Created ${departments.length} departments`);
 
   // สร้างสาขา
   console.log("📚 Creating majors...");
-  const majors = await Promise.all([
-    prisma.major.create({ data: { name: "คอมพิวเตอร์ศึกษา", departmentId: departments[0].id } }),
-    prisma.major.create({ data: { name: "ครุศาสตร์โยธา", departmentId: departments[1].id } }),
-    prisma.major.create({ data: { name: "ครุศาสตร์ไฟฟ้า", departmentId: departments[2].id } }),
-    prisma.major.create({ data: { name: "ครุศาสตร์เครื่องกล", departmentId: departments[3].id } }),
-    prisma.major.create({ data: { name: "ครุศาสตร์เทคโนโลยีและสารสนเทศ", departmentId: departments[4].id } }),
-    prisma.major.create({ data: { name: "บริหารเทคนิคศึกษา", departmentId: departments[5].id } }),
-  ]);
-  console.log(`✅ Created ${majors.length} majors`);
+  const allMajors = [];
+  for (const dept of departments) {
+    for (const majorName of dept.majorNames) {
+      const major = await prisma.major.create({
+        data: {
+          name: majorName,
+          departmentId: dept.id,
+        },
+      });
+      allMajors.push(major);
+    }
+  }
+  console.log(`✅ Created ${allMajors.length} majors`);
 
   // สร้างประเภทกิจกรรม
   console.log("🏷️  Creating type activities...");
@@ -80,272 +132,99 @@ async function main() {
 
   // สร้างผู้ดูแลระบบ (Admin)
   console.log("👑 Creating admin user...");
-  const adminPassword = await bcrypt.hash("admin123", 10);
+  const adminPassword = await bcrypt.hash("Admin@2025!", 12);
   const admin = await prisma.user.create({
     data: {
       fullname: "ผู้ดูแลระบบ",
-      email: "admin@example.com",
+      email: "admin@fte.kmutnb.ac.th",
       password: adminPassword,
       phone: "0812345678",
       userType: "admin",
       status: "active",
-      departmentId: departments[0].id,
+      departmentId: departments[2].id, // คอมพิวเตอร์ศึกษา
     },
   });
-
   console.log(`✅ Created admin: ${admin.email}`);
 
-  // สร้างอาจารย์
+  // สร้างอาจารย์ (1 คนต่อแผนก)
   console.log("👨‍🏫 Creating teachers...");
-  const teacherPassword = await bcrypt.hash("teacher123", 10);
-  const teachers = await Promise.all([
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์สมชาย ใจดี",
-        email: "somchai@example.com",
-        password: teacherPassword,
-        phone: "0823456789",
-        departmentId: departments[0].id,
-        majorId: majors[0].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์สมหญิง รักเรียน",
-        email: "somying@example.com",
-        password: teacherPassword,
-        phone: "0834567890",
-        departmentId: departments[1].id,
-        majorId: majors[1].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์วิชัย ดีงาม",
-        email: "vichai@example.com",
-        password: teacherPassword,
-        phone: "0845678901",
-        departmentId: departments[2].id,
-        majorId: majors[2].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์ศิริพร สุขใจ",
-        email: "siriporn@example.com",
-        password: teacherPassword,
-        phone: "0856789012",
-        departmentId: departments[3].id,
-        majorId: majors[3].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์ประยุทธ แสงสว่าง",
-        email: "prayut@example.com",
-        password: teacherPassword,
-        phone: "0867890123",
-        departmentId: departments[4].id,
-        majorId: majors[4].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        fullname: "อาจารย์กมลวรรณ ดีงาม",
-        email: "kamonwan@example.com",
-        password: teacherPassword,
-        phone: "0878901234",
-        departmentId: departments[5].id,
-        majorId: majors[5].id,
-        userType: "teacher",
-        status: "active",
-      },
-    }),
-  ]);
+  const teacherPassword = await bcrypt.hash("Teacher@2025!", 12);
+  const teacherData = [
+    { fullname: "อาจารย์สมชาย เครื่องกล", email: "somchai.me@fte.kmutnb.ac.th", deptIndex: 0 },
+    { fullname: "อาจารย์สมหญิง ไฟฟ้า", email: "somying.ee@fte.kmutnb.ac.th", deptIndex: 1 },
+    { fullname: "อาจารย์วิชัย คอมพิวเตอร์", email: "vichai.ced@fte.kmutnb.ac.th", deptIndex: 2 },
+    { fullname: "อาจารย์ศิริพร เทคโนโลยี", email: "siriporn.ite@fte.kmutnb.ac.th", deptIndex: 3 },
+    { fullname: "อาจารย์ประยุทธ โยธา", email: "prayut.ce@fte.kmutnb.ac.th", deptIndex: 4 },
+    { fullname: "อาจารย์กมลวรรณ บริหาร", email: "kamonwan.tem@fte.kmutnb.ac.th", deptIndex: 5 },
+  ];
 
+  const teachers = [];
+  for (let i = 0; i < teacherData.length; i++) {
+    const t = teacherData[i];
+    // หา major แรกของแผนกนั้น
+    const deptMajor = allMajors.find(m => m.departmentId === departments[t.deptIndex].id);
+    const teacher = await prisma.user.create({
+      data: {
+        fullname: t.fullname,
+        email: t.email,
+        password: teacherPassword,
+        phone: `08${(23456789 + i).toString()}`,
+        departmentId: departments[t.deptIndex].id,
+        majorId: deptMajor?.id,
+        userType: "teacher",
+        status: "active",
+      },
+    });
+    teachers.push(teacher);
+  }
   console.log(`✅ Created ${teachers.length} teachers`);
 
-  // สร้างนักศึกษา
+  // สร้างนักศึกษาตัวอย่าง (2 คนต่อแผนก)
   console.log("👨‍🎓 Creating students...");
-  const students = await Promise.all([
-    // นักศึกษาภาควิชาคอมพิวเตอร์ศึกษา
-    prisma.user.create({
-      data: {
-        studentId: "6501101001",
-        fullname: "สมศักดิ์ แก้วใส",
-        email: "somsak.k@student.ac.th",
-        phone: "0867890123",
-        departmentId: departments[0].id,
-        majorId: majors[0].id,
-        userType: "student",
-	      level:"1",
-        birthday: "2547-05-15",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6501101002",
-        fullname: "วิไล ดอกไม้",
-        email: "wilai.d@student.ac.th",
-        phone: "0878901234",
-        departmentId: departments[0].id,
-        majorId: majors[0].id,
-        userType: "student",
-        birthday: "2547-08-20",
-        status: "active",
-      },
-    }),
-    // นักศึกษาภาควิชาครุศาสตร์โยธา
-    prisma.user.create({
-      data: {
-        studentId: "6502201001",
-        fullname: "ประยุทธ สว่างแสง",
-        email: "prayut.s@student.ac.th",
-        phone: "0889012345",
-        departmentId: departments[1].id,
-        majorId: majors[1].id,
-        userType: "student",
-        birthday: "2547-03-10",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6502201002",
-        fullname: "กมลวรรณ ใจงาม",
-        email: "kamonwan.j@student.ac.th",
-        phone: "0890123456",
-        departmentId: departments[1].id,
-        majorId: majors[1].id,
-        userType: "student",
-        birthday: "2547-11-25",
-        status: "active",
-      },
-    }),
-    // นักศึกษาภาควิชาครุศาสตร์ไฟฟ้า
-    prisma.user.create({
-      data: {
-        studentId: "6503301001",
-        fullname: "อนุชา พัฒนา",
-        email: "anucha.p@student.ac.th",
-        phone: "0801234567",
-        departmentId: departments[2].id,
-        majorId: majors[2].id,
-        userType: "student",
-        birthday: "2547-07-18",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6503301002",
-        fullname: "รัตนา มีสุข",
-        email: "rattana.m@student.ac.th",
-        phone: "0812345679",
-        departmentId: departments[2].id,
-        majorId: majors[2].id,
-        userType: "student",
-        birthday: "2547-12-05",
-        status: "active",
-      },
-    }),
-    // นักศึกษาภาควิชาครุศาสตร์เครื่องกล
-    prisma.user.create({
-      data: {
-        studentId: "6504401001",
-        fullname: "ชัยวัฒน์ เจริญ",
-        email: "chaiwat.c@student.ac.th",
-        phone: "0823456780",
-        departmentId: departments[3].id,
-        majorId: majors[3].id,
-        userType: "student",
-        birthday: "2547-09-30",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6504401002",
-        fullname: "ปิยะนุช สดใส",
-        email: "piyanut.s@student.ac.th",
-        phone: "0834567891",
-        departmentId: departments[3].id,
-        majorId: majors[3].id,
-        userType: "student",
-        birthday: "2547-02-14",
-        status: "active",
-      },
-    }),
-    // นักศึกษาภาควิชาครุศาสตร์เทคโนโลยีและสารสนเทศ
-    prisma.user.create({
-      data: {
-        studentId: "6505501001",
-        fullname: "ธนากร รักษ์ดี",
-        email: "thanakorn.r@student.ac.th",
-        phone: "0845678902",
-        departmentId: departments[4].id,
-        majorId: majors[4].id,
-        userType: "student",
-        birthday: "2547-06-22",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6505501002",
-        fullname: "นิภาพร สว่างใจ",
-        email: "nipaporn.s@student.ac.th",
-        phone: "0856789013",
-        departmentId: departments[4].id,
-        majorId: majors[4].id,
-        userType: "student",
-        birthday: "2547-04-18",
-        status: "active",
-      },
-    }),
-    // นักศึกษาภาควิชาบริหารเทคนิคศึกษา
-    prisma.user.create({
-      data: {
-        studentId: "6506601001",
-        fullname: "สุรศักดิ์ มั่นคง",
-        email: "surasak.m@student.ac.th",
-        phone: "0867890124",
-        departmentId: departments[5].id,
-        majorId: majors[5].id,
-        userType: "student",
-        birthday: "2547-01-08",
-        status: "active",
-      },
-    }),
-    prisma.user.create({
-      data: {
-        studentId: "6506601002",
-        fullname: "พิมพ์ชนก ดีเลิศ",
-        email: "phimchanok.d@student.ac.th",
-        phone: "0878901235",
-        departmentId: departments[5].id,
-        majorId: majors[5].id,
-        userType: "student",
-        birthday: "2547-10-12",
-        status: "active",
-      },
-    }),
-  ]);
+  const studentData = [
+    // ครุศาสตร์เครื่องกล
+    { studentId: "6701501001", fullname: "นายกิตติพงศ์ เครื่องกล", deptIndex: 0, level: "1" },
+    { studentId: "6701501002", fullname: "นางสาวกมลชนก เครื่องกล", deptIndex: 0, level: "2" },
+    // ครุศาสตร์ไฟฟ้า
+    { studentId: "6702502001", fullname: "นายธนากร ไฟฟ้า", deptIndex: 1, level: "1" },
+    { studentId: "6702502002", fullname: "นางสาวพิมพ์ชนก ไฟฟ้า", deptIndex: 1, level: "2" },
+    // คอมพิวเตอร์ศึกษา
+    { studentId: "6703503001", fullname: "นายวีรภัทร คอมพิวเตอร์", deptIndex: 2, level: "1" },
+    { studentId: "6703503002", fullname: "นางสาวสุภาวดี คอมพิวเตอร์", deptIndex: 2, level: "2" },
+    // ครุศาสตร์เทคโนโลยีและสารสนเทศ
+    { studentId: "6704504001", fullname: "นายอนุชา เทคโนโลยี", deptIndex: 3, level: "1" },
+    { studentId: "6704504002", fullname: "นางสาวนิภาพร เทคโนโลยี", deptIndex: 3, level: "2" },
+    // ครุศาสตร์โยธา
+    { studentId: "6705505001", fullname: "นายชัยวัฒน์ โยธา", deptIndex: 4, level: "1" },
+    { studentId: "6705505002", fullname: "นางสาวปิยนุช โยธา", deptIndex: 4, level: "2" },
+    // บริหารเทคนิคศึกษา
+    { studentId: "6706506001", fullname: "นายสุรศักดิ์ บริหาร", deptIndex: 5, level: "1" },
+    { studentId: "6706506002", fullname: "นางสาวรัตนา บริหาร", deptIndex: 5, level: "2" },
+  ];
 
+  const students = [];
+  for (let i = 0; i < studentData.length; i++) {
+    const s = studentData[i];
+    const deptMajor = allMajors.find(m => m.departmentId === departments[s.deptIndex].id);
+    const student = await prisma.user.create({
+      data: {
+        studentId: s.studentId,
+        fullname: s.fullname,
+        email: `s${s.studentId}@student.kmutnb.ac.th`,
+        phone: `09${(10000000 + i).toString()}`,
+        departmentId: departments[s.deptIndex].id,
+        majorId: deptMajor?.id,
+        userType: "student",
+        level: s.level,
+        birthday: "2547-01-01",
+        status: "active",
+      },
+    });
+    students.push(student);
+  }
   console.log(`✅ Created ${students.length} students`);
 
-  // สร้างกิจกรรม
+  // สร้างกิจกรรมตัวอย่าง
   console.log("🎉 Creating activities...");
   const activities = await Promise.all([
     prisma.activity.create({
@@ -354,8 +233,8 @@ async function main() {
         description: "กิจกรรมต้อนรับนักศึกษาใหม่ ประจำปีการศึกษา 2568",
         date: dayjs().add(7, "day").toDate(),
         address: "หอประชุมใหญ่",
-        departmentId: departments[0].id,
-        responsibleId: teachers[0].id,
+        departmentId: departments[2].id,
+        responsibleId: teachers[2].id,
         typeActivityId: typeActivities[0].id,
         maxPeopleCount: 200,
         hour: 4,
@@ -364,71 +243,15 @@ async function main() {
     }),
     prisma.activity.create({
       data: {
-        name: "การแข่งขันโครงงานวิศวกรรมโยธา",
-        description: "การแข่งขันนำเสนอโครงงานวิศวกรรมโยธาระดับภาควิชา",
-        date: dayjs().add(14, "day").toDate(),
-        address: "ห้องประชุมภาควิชาครุศาสตร์โยธา",
-        departmentId: departments[1].id,
-        responsibleId: teachers[1].id,
-        typeActivityId: typeActivities[0].id,
-        maxPeopleCount: 100,
-        hour: 6,
-        status: "planned",
-      },
-    }),
-    prisma.activity.create({
-      data: {
-        name: "สัมมนาเทคโนโลยีไฟฟ้าสมัยใหม่",
-        description: "สัมมนาเทคโนโลยีไฟฟ้าและพลังงานทดแทน",
-        date: dayjs().add(21, "day").toDate(),
-        address: "ห้องประชุมภาควิชาครุศาสตร์ไฟฟ้า",
-        departmentId: departments[2].id,
-        responsibleId: teachers[2].id,
-        typeActivityId: typeActivities[1].id,
-        maxPeopleCount: 150,
-        hour: 3,
-        status: "planned",
-      },
-    }),
-    prisma.activity.create({
-      data: {
-        name: "การแข่งขันออกแบบเครื่องจักรกล",
-        description: "การแข่งขันออกแบบและประกอบเครื่องจักรกล",
-        date: dayjs().add(28, "day").toDate(),
-        address: "ห้องปฏิบัติการภาควิชาครุศาสตร์เครื่องกล",
-        departmentId: departments[3].id,
-        responsibleId: teachers[3].id,
-        typeActivityId: typeActivities[1].id,
-        maxPeopleCount: 80,
-        hour: 8,
-        status: "planned",
-      },
-    }),
-    prisma.activity.create({
-      data: {
         name: "Hackathon 2025",
         description: "การแข่งขันพัฒนาซอฟต์แวร์ 24 ชั่วโมง",
         date: dayjs().add(30, "day").toDate(),
-        address: "ภาควิชาครุศาสตร์เทคโนโลยีและสารสนเทศ",
-        departmentId: departments[4].id,
-        responsibleId: teachers[4].id,
+        address: "อาคารคณะครุศาสตร์อุตสาหกรรม",
+        departmentId: departments[2].id,
+        responsibleId: teachers[2].id,
         typeActivityId: typeActivities[0].id,
         maxPeopleCount: 100,
         hour: 24,
-        status: "planned",
-      },
-    }),
-    prisma.activity.create({
-      data: {
-        name: "สัมมนาการบริหารจัดการเทคนิคศึกษา",
-        description: "สัมมนาแนวทางการบริหารจัดการสถาบันเทคนิคศึกษา",
-        date: dayjs().add(35, "day").toDate(),
-        address: "ห้องประชุมภาควิชาบริหารเทคนิคศึกษา",
-        departmentId: departments[5].id,
-        responsibleId: teachers[5].id,
-        typeActivityId: typeActivities[2].id,
-        maxPeopleCount: 120,
-        hour: 5,
         status: "planned",
       },
     }),
@@ -438,8 +261,8 @@ async function main() {
         description: "กิจกรรมพัฒนาชุมชนรอบมหาวิทยาลัย",
         date: dayjs().subtract(7, "day").toDate(),
         address: "ชุมชนบ้านสวนดอก",
-        departmentId: departments[0].id,
-        responsibleId: teachers[0].id,
+        departmentId: departments[2].id,
+        responsibleId: teachers[2].id,
         typeActivityId: typeActivities[2].id,
         peopleCount: 45,
         maxPeopleCount: 50,
@@ -448,108 +271,35 @@ async function main() {
       },
     }),
   ]);
-
   console.log(`✅ Created ${activities.length} activities`);
 
-  // เชื่อมสาขาเข้ากับกิจกรรม (ตัวอย่าง)
+  // เชื่อมสาขาเข้ากับกิจกรรม
   console.log("🔗 Linking majors to activities...");
-  await prisma.majorJoinActivity.createMany({
-    data: [
-      { majorId: majors[0].id, activityId: activities[0].id },
-      { majorId: majors[1].id, activityId: activities[1].id },
-      { majorId: majors[2].id, activityId: activities[2].id },
-      { majorId: majors[3].id, activityId: activities[3].id },
-      { majorId: majors[4].id, activityId: activities[4].id },
-      { majorId: majors[5].id, activityId: activities[5].id },
-      { majorId: majors[0].id, activityId: activities[6].id },
-    ],
-    skipDuplicates: true,
-  });
+  const cedMajor = allMajors.find(m => m.name.includes("เทคโนโลยีคอมพิวเตอร์"));
+  if (cedMajor) {
+    await prisma.majorJoinActivity.createMany({
+      data: activities.map(a => ({ majorId: cedMajor.id, activityId: a.id })),
+      skipDuplicates: true,
+    });
+  }
+  console.log("✅ Linked majors to activities");
 
   // สร้างการลงทะเบียนเข้าร่วมกิจกรรม
   console.log("📝 Creating attendances...");
   const attendances = await Promise.all([
-    // กิจกรรมที่เสร็จสิ้นแล้ว
     prisma.attendance.create({
-      data: {
-        userId: students[0].id,
-        activityId: activities[4].id,
-        status: "completed",
-      },
+      data: { userId: students[4].id, activityId: activities[0].id, status: "joined" },
     }),
     prisma.attendance.create({
-      data: {
-        userId: students[1].id,
-        activityId: activities[4].id,
-        status: "completed",
-      },
+      data: { userId: students[5].id, activityId: activities[0].id, status: "joined" },
     }),
     prisma.attendance.create({
-      data: {
-        userId: students[2].id,
-        activityId: activities[4].id,
-        status: "completed",
-      },
-    }),
-    // กิจกรรมที่กำลังจะมาถึง
-    prisma.attendance.create({
-      data: {
-        userId: students[0].id,
-        activityId: activities[0].id,
-        status: "joined",
-      },
+      data: { userId: students[4].id, activityId: activities[2].id, status: "completed" },
     }),
     prisma.attendance.create({
-      data: {
-        userId: students[1].id,
-        activityId: activities[0].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[2].id,
-        activityId: activities[1].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[3].id,
-        activityId: activities[1].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[4].id,
-        activityId: activities[2].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[5].id,
-        activityId: activities[2].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[6].id,
-        activityId: activities[3].id,
-        status: "joined",
-      },
-    }),
-    prisma.attendance.create({
-      data: {
-        userId: students[7].id,
-        activityId: activities[3].id,
-        status: "joined",
-      },
+      data: { userId: students[5].id, activityId: activities[2].id, status: "completed" },
     }),
   ]);
-
   console.log(`✅ Created ${attendances.length} attendances`);
 
   // สร้าง Logs
@@ -560,35 +310,18 @@ async function main() {
         action: "CREATE_USER",
         fullname: admin.fullname,
         role: "admin",
-        description: "สร้างบัญชีผู้ใช้ใหม่",
+        description: "สร้างบัญชีผู้ดูแลระบบ",
       },
     }),
     prisma.log.create({
       data: {
         action: "CREATE_ACTIVITY",
-        fullname: teachers[0].fullname,
+        fullname: teachers[2].fullname,
         role: "teacher",
         description: `สร้างกิจกรรม: ${activities[0].name}`,
       },
     }),
-    prisma.log.create({
-      data: {
-        action: "UPDATE_ACTIVITY",
-        fullname: teachers[0].fullname,
-        role: "teacher",
-        description: `อัปเดตกิจกรรม: ${activities[4].name}`,
-      },
-    }),
-    prisma.log.create({
-      data: {
-        action: "JOIN_ACTIVITY",
-        fullname: students[0].fullname,
-        role: "student",
-        description: `ลงทะเบียนเข้าร่วมกิจกรรม: ${activities[0].name}`,
-      },
-    }),
   ]);
-
   console.log(`✅ Created ${logs.length} logs`);
 
   console.log("");
@@ -596,6 +329,8 @@ async function main() {
   console.log("");
   console.log("📋 Summary:");
   console.log(`   - Departments: ${departments.length}`);
+  console.log(`   - Majors: ${allMajors.length}`);
+  console.log(`   - Type Activities: ${typeActivities.length}`);
   console.log(`   - Admin: 1`);
   console.log(`   - Teachers: ${teachers.length}`);
   console.log(`   - Students: ${students.length}`);
@@ -604,12 +339,13 @@ async function main() {
   console.log(`   - Logs: ${logs.length}`);
   console.log("");
   console.log("🔐 Login credentials:");
-  console.log("   Admin:   admin@example.com / admin123");
-  console.log("   Teacher: somchai@example.com / teacher123");
+  console.log("   Admin:   admin@fte.kmutnb.ac.th / Admin@2025!");
+  console.log("   Teacher: vichai.ced@fte.kmutnb.ac.th / Teacher@2025!");
 }
 
 main()
   .catch((e) => {
+    console.error("❌ Seed failed:");
     console.error(e);
     process.exit(1);
   })
